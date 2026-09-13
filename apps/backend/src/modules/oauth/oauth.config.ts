@@ -3,6 +3,8 @@ const DEFAULT_SCOPES = [
   "email",
   "tasks:read",
   "tasks:write",
+  "events:read",
+  "events:write",
   "projects:read",
   "projects:write",
   "notes:read",

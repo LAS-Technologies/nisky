@@ -64,6 +64,34 @@ export function registerAgendaTools(server: McpServer, auth: string) {
   );
 
   server.registerTool(
+    "list-events",
+    {
+      title: "Listar eventos",
+      description: "Lista los eventos del calendario dentro de un intervalo, incluyendo recurrencias y excepciones.",
+      inputSchema: z
+        .object({
+          from: calendarDate,
+          to: calendarDate,
+        })
+        .refine((value) => value.from <= value.to, {
+          message: "El intervalo de fechas no es válido",
+          path: ["to"],
+        })
+        .refine(
+          (value) => Date.parse(`${value.to}T00:00:00.000Z`) - Date.parse(`${value.from}T00:00:00.000Z`) <= MAX_SCHEDULE_RANGE_MS,
+          {
+            message: "El intervalo no puede superar 31 días",
+            path: ["to"],
+          },
+        ),
+    },
+    async ({ from, to }) => {
+      const result = await nisky(auth, `/events?from=${encodeURIComponent(`${from}T00:00:00.000Z`)}&to=${encodeURIComponent(`${to}T23:59:59.999Z`)}`);
+      return toolResult(result);
+    },
+  );
+
+  server.registerTool(
     "schedule-task",
     {
       title: "Programar tarea",

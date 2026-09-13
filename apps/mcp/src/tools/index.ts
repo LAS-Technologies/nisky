@@ -9,6 +9,7 @@ import { registerTimeBlockTools } from "./timeblocks";
 export const TOOL_SCOPES = {
   "get-home-overview": "tasks:read",
   "list-task-schedule": "tasks:read",
+  "list-events": "events:read",
   "schedule-task": "tasks:write",
   "list-projects": "projects:read",
   "create-project": "projects:write",

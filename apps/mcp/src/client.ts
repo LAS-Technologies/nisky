@@ -28,6 +28,7 @@ function requiredScope(path: string, method: string) {
   const normalized = path.split("?", 1)[0] ?? path;
   const read = method === "GET" || method === "HEAD";
   if (normalized === "/home/overview" || normalized.startsWith("/tasks") || normalized.startsWith("/task-schedules")) return read ? "tasks:read" : "tasks:write";
+  if (normalized.startsWith("/events")) return read ? "events:read" : "events:write";
   if (normalized.startsWith("/projects")) return read ? "projects:read" : "projects:write";
   if (normalized.startsWith("/quick-notes") || normalized.startsWith("/knowledge")) return read ? "notes:read" : "notes:write";
   if (normalized.startsWith("/timeblocks")) return read ? "timeblocks:read" : "timeblocks:write";

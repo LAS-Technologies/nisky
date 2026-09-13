@@ -16,6 +16,7 @@ describe("MCP tool registry", () => {
     expect([...registrations.keys()]).toEqual([
       "get-home-overview",
       "list-task-schedule",
+      "list-events",
       "schedule-task",
       "list-projects",
       "create-project",
@@ -37,7 +38,7 @@ describe("MCP tool registry", () => {
       "create-knowledge-note",
       "update-knowledge-note",
     ]);
-    expect(registrations.size).toBe(22);
+    expect(registrations.size).toBe(23);
     expect([...registeredTools.keys()].sort()).toEqual(Object.keys(TOOL_SCOPES).sort());
     expect(registrations.get("schedule-task")?.inputSchema.safeParse({
       taskId: "00000000-0000-4000-8000-000000000001",
@@ -48,6 +49,14 @@ describe("MCP tool registry", () => {
       taskId: "00000000-0000-4000-8000-000000000001",
       date: "2026-02-30",
       timeBlockId: "00000000-0000-4000-8000-000000000002",
+    }).success).toBe(false);
+    expect(registrations.get("list-events")?.inputSchema.safeParse({
+      from: "2026-09-15",
+      to: "2026-09-21",
+    }).success).toBe(true);
+    expect(registrations.get("list-events")?.inputSchema.safeParse({
+      from: "2026-09-21",
+      to: "2026-09-15",
     }).success).toBe(false);
   });
 

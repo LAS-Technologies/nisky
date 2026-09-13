@@ -1,7 +1,7 @@
 export function oauthSettings(env: NodeJS.ProcessEnv = process.env) {
   const publicUrl = (env.MCP_PUBLIC_URL ?? "http://localhost:8787").replace(/\/+$/, "");
   const issuer = (env.OAUTH_ISSUER_URL ?? env.OAUTH_ISSUER ?? "http://localhost:4000").replace(/\/+$/, "");
-  const scopes = (env.OAUTH_SCOPES ?? "profile email tasks:read tasks:write projects:read projects:write notes:read notes:write timeblocks:read timeblocks:write")
+  const scopes = (env.OAUTH_SCOPES ?? "profile email tasks:read tasks:write events:read events:write projects:read projects:write notes:read notes:write timeblocks:read timeblocks:write")
     .split(/[\s,]+/)
     .filter(Boolean);
   return { publicUrl, issuer, resource: `${publicUrl}/mcp`, scopes };
