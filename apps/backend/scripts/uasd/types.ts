@@ -5,13 +5,12 @@ export const UASD_GATEWAY_URL = "https://app.uasd.edu.do/UASDVirtualGateway";
 export const UASD_LOGIN_URL = `${UASD_GATEWAY_URL}/Default.aspx/Login`;
 export const UASD_SELECTION_URL = `${UASD_GATEWAY_URL}/Default.aspx/SeleccionAsignaturas`;
 
-export const UASD_ALLOWED_HOSTS = new Set([
-  "app.uasd.edu.do",
-  "aulavirtual.uasd.edu.do",
-  "ciencias.uasd.edu.do",
-  "humanidades.uasd.edu.do",
-  "uasdvirtual.uasd.edu.do",
-]);
+const UASD_HOST_SUFFIX = ".uasd.edu.do";
+
+export function isUasdHost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase().replace(/\.$/u, "");
+  return normalized.length > UASD_HOST_SUFFIX.length && normalized.endsWith(UASD_HOST_SUFFIX);
+}
 
 export type UasdBrowser = BrowserAlias | BrowserProfile;
 export type UasdActivityKind = "assignment" | "quiz" | "forum";

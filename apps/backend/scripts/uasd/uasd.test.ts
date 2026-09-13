@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 import { parseActivityDetails } from "./activities";
 import { buildCalendarUrl, parseCalendarPage } from "./calendar";
 import { buildLoginBody, parseLoginResponse, parseSelectionResponse } from "./gateway";
-import { buildHandoffBody } from "./handoff";
+import { buildHandoffBody, validateHandoffUrl } from "./handoff";
 import { chooseTarget, mergeCalendarEvents, parseUasdDate } from "./normalize";
 import { scrapeUasd, validateUasdInput } from "./scraper";
 import { redactedUrl, validateUasdUrl } from "./transport";
@@ -127,10 +127,19 @@ describe("UASD gateway", () => {
 describe("UASD transport guards", () => {
   test("allows only HTTPS UASD hosts and redacts query strings", () => {
     expect(validateUasdUrl("https://ciencias.uasd.edu.do/course/view.php?id=9001").hostname).toBe("ciencias.uasd.edu.do");
+    expect(validateUasdUrl("https://facultad-nueva.uasd.edu.do/course/view.php?id=9002").hostname).toBe("facultad-nueva.uasd.edu.do");
     expect(redactedUrl("https://ciencias.uasd.edu.do/course/view.php?id=9001&tk=fixture")).toBe("https://ciencias.uasd.edu.do/course/view.php?id=9001");
     expect(redactedUrl("https://ciencias.uasd.edu.do/calendar/view.php?view=month&course=9001&time=1777953600&tk=fixture")).toBe("https://ciencias.uasd.edu.do/calendar/view.php?view=month&course=9001&time=1777953600");
     expect(() => validateUasdUrl("https://example.com/")).toThrow();
+    expect(() => validateUasdUrl("https://eviluasd.edu.do/")).toThrow();
+    expect(() => validateUasdUrl("https://uasd.edu.do.attacker.example/")).toThrow();
     expect(() => validateUasdUrl("https://ciencias.uasd.edu.do:8443/")).toThrow();
+  });
+
+  test("allows new UASD handoff subdomains without broadening the domain boundary", () => {
+    expect(validateHandoffUrl("https://facultad-nueva.uasd.edu.do/login/wsuasd.php")).toBe("https://facultad-nueva.uasd.edu.do/login/wsuasd.php");
+    expect(() => validateHandoffUrl("https://eviluasd.edu.do/login/wsuasd.php")).toThrow();
+    expect(() => validateHandoffUrl("https://facultad-nueva.uasd.edu.do/otro-endpoint")).toThrow();
   });
 });
 

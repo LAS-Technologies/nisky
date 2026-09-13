@@ -1,5 +1,5 @@
 import { createSession, type BrowserAlias, type BrowserProfile, type EmulationOS, type Session } from "wreq-js";
-import { UASD_ALLOWED_HOSTS, UasdError } from "./types";
+import { isUasdHost, UasdError } from "./types";
 import type { UasdBrowser } from "./types";
 
 export type UasdHttpMethod = "GET" | "POST";
@@ -63,7 +63,7 @@ export function validateUasdUrl(input: string | URL): URL {
     throw new UasdError("UNEXPECTED_HOST", "La URL UASD no es valida");
   }
 
-  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || url.username || url.password || !UASD_ALLOWED_HOSTS.has(url.hostname.toLowerCase())) {
+  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || url.username || url.password || !isUasdHost(url.hostname)) {
     throw new UasdError("UNEXPECTED_HOST", "La URL UASD apunta a un destino no permitido");
   }
   return url;

@@ -1,5 +1,5 @@
 import { chooseTarget, courseUrl } from "./normalize";
-import { UASD_GATEWAY_URL, UASD_ALLOWED_HOSTS, UasdError } from "./types";
+import { UASD_GATEWAY_URL, isUasdHost, UasdError } from "./types";
 import type { UasdCourse, UasdSelectionRecord } from "./types";
 import type { UasdHttpClient, UasdHttpResponse } from "./transport";
 
@@ -51,7 +51,7 @@ export function validateHandoffUrl(rawUrl: string): string {
   } catch {
     throw new UasdError("PARSE_ERROR", "La URL de handoff UASD no es valida");
   }
-  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || !UASD_ALLOWED_HOSTS.has(url.hostname.toLowerCase()) || !HANDOFF_PATH_RE.test(url.pathname)) {
+  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || !isUasdHost(url.hostname) || !HANDOFF_PATH_RE.test(url.pathname)) {
     throw new UasdError("UNEXPECTED_HOST", "La URL de handoff UASD no esta permitida");
   }
   return `${url.origin}${url.pathname}`;

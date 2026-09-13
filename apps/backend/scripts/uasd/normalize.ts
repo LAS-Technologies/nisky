@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { UASD_ALLOWED_HOSTS, UASD_TIME_ZONE, UasdError } from "./types";
+import { isUasdHost, UASD_TIME_ZONE, UasdError } from "./types";
 import type { UasdActivityDetails, UasdActivityKind, UasdCalendarEvent, UasdRemoteItem, UasdSelectionRecord } from "./types";
 
 const MONTHS: Record<string, number> = {
@@ -110,7 +110,7 @@ export function activityUrl(rawUrl: string, expectedHost?: string): { host: stri
   } catch {
     throw new UasdError("PARSE_ERROR", "El enlace de actividad UASD no es válido");
   }
-  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || !UASD_ALLOWED_HOSTS.has(url.hostname.toLowerCase())) {
+  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || !isUasdHost(url.hostname)) {
     throw new UasdError("UNEXPECTED_HOST", "El enlace de actividad UASD apunta a un host no permitido");
   }
   if (expectedHost && url.hostname.toLowerCase() !== expectedHost.toLowerCase()) {
@@ -129,7 +129,7 @@ export function courseUrl(rawUrl: string): { host: string; courseId: string; url
   } catch {
     throw new UasdError("PARSE_ERROR", "La URL final del curso UASD no es válida");
   }
-  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || !UASD_ALLOWED_HOSTS.has(url.hostname.toLowerCase())) throw new UasdError("UNEXPECTED_HOST", "El curso UASD terminó en un host no permitido");
+  if (url.protocol !== "https:" || (url.port !== "" && url.port !== "443") || !isUasdHost(url.hostname)) throw new UasdError("UNEXPECTED_HOST", "El curso UASD terminó en un host no permitido");
   if (!COURSE_PATH_RE.test(url.pathname)) throw new UasdError("PARSE_ERROR", "El handoff UASD no termino en un curso");
   const id = url.searchParams.get("id");
   if (!id || !/^\d+$/.test(id)) throw new UasdError("PARSE_ERROR", "El curso UASD no contiene un id válido");
