@@ -29,6 +29,8 @@ const scopeLabels: Record<string, string> = {
   email: "Tu correo electrónico",
   "tasks:read": "Consultar tus tareas y agenda",
   "tasks:write": "Crear y actualizar tus tareas",
+  "events:read": "Consultar tus eventos",
+  "events:write": "Crear y actualizar tus eventos",
   "projects:read": "Consultar tus proyectos",
   "projects:write": "Crear y actualizar tus proyectos",
   "notes:read": "Consultar tus notas",
