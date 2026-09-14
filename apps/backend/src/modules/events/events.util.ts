@@ -16,6 +16,10 @@ function dayInTz(value: Date, zone = TIME_BLOCKS_TZ) {
   return DateTime.fromJSDate(value, { zone }).startOf("day");
 }
 
+export function parseEventDate(value: string) {
+  return DateTime.fromISO(value, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate();
+}
+
 export function eventOccurrenceOn(
   event: CalendarEvent,
   targetDate: Date,

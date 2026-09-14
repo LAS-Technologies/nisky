@@ -1,11 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
 import { eventsService } from "./events.service";
+import { parseEventDate } from "./events.util";
 
 export class EventsController {
   async list(req: Request, res: Response, next: NextFunction) {
     try {
-      const fromDate = new Date(req.query.from as string);
-      const toDate = new Date(req.query.to as string);
+      const fromDate = parseEventDate(req.query.from as string);
+      const toDate = parseEventDate(req.query.to as string);
       const events = await eventsService.list(req.user!.id, fromDate, toDate);
       res.success(events);
     } catch (error) {
