@@ -176,7 +176,7 @@ export function TimeBlockWeekGrid({
   });
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const todayKey = toDateKey(now);
   const gridWeekStart = weekStart ?? monday(now);
   const days = DAY_ORDER.map((dayOfWeek, index) => {
     const date = new Date(gridWeekStart);
@@ -184,7 +184,7 @@ export function TimeBlockWeekGrid({
     return {
       dayOfWeek,
       date,
-      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+      key: toDateKey(date),
     };
   });
   const hourMarks = Array.from(

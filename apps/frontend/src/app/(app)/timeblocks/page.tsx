@@ -62,7 +62,7 @@ function EventMoveModal({
 }) {
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
-      <DialogContent className="max-w-md rounded-lg border-outline-variant bg-surface shadow-cadence-3" showCloseButton={false}>
+      <DialogContent className="max-w-md rounded-lg border-outline-variant bg-surface shadow-cadence-3" keyboardAware showCloseButton={false}>
         <DialogHeader className="text-left">
           <DialogTitle className="font-headline-xs text-headline-xs normal-case tracking-normal">Mover «{title}»</DialogTitle>
           <DialogDescription className="font-body-md text-body-md text-on-surface-variant">

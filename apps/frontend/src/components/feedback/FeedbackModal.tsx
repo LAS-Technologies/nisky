@@ -14,7 +14,7 @@ import {
 export function FeedbackModal({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
-      <DialogContent className="flex max-h-[90dvh] max-w-md flex-col overflow-y-auto rounded-lg border-outline-variant bg-surface p-5" showCloseButton={false}>
+      <DialogContent className="flex max-h-[90dvh] max-w-md flex-col overflow-y-auto rounded-lg border-outline-variant bg-surface p-5" keyboardAware showCloseButton={false}>
         <DialogHeader className="mb-4 flex-row items-center justify-between text-left">
           <DialogTitle className="font-headline-sm text-headline-sm normal-case tracking-normal">Enviar feedback</DialogTitle>
           <DialogDescription className="sr-only">Comparte tus comentarios sobre Nisky.</DialogDescription>

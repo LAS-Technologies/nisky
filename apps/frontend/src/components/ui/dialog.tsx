@@ -53,10 +53,12 @@ function DialogContent({
   children,
   showCloseButton = true,
   overlayClassName,
+  keyboardAware = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   overlayClassName?: string
+  keyboardAware?: boolean
 }) {
   const viewportRef = useKeyboardAwareViewport<HTMLDivElement>();
 
@@ -70,7 +72,7 @@ function DialogContent({
           className
         )}
         {...props}
-        ref={viewportRef}
+        ref={keyboardAware ? viewportRef : undefined}
       >
         {children}
         {showCloseButton && (

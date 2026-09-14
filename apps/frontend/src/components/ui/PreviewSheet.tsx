@@ -190,7 +190,6 @@ function MobilePreviewSheet({
             ? "h-[min(94svh,52rem)] !max-h-[94svh]"
             : "h-[min(88svh,48rem)] max-h-[88svh]",
         )}
-        data-keyboard-stable
       >
         <PreviewHeader
           description={description}

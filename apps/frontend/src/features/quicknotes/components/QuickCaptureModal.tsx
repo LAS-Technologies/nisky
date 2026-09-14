@@ -47,7 +47,7 @@ function CaptureHeading({ mode }: { mode: CaptureMode }) {
 export function QuickCaptureModal({ open, onClose, initialMode = "TASK" }: { open: boolean; onClose: () => void; initialMode?: CaptureMode }) {
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
-      <DialogContent className="fixed bottom-auto left-1/2 right-auto top-0 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none -translate-x-1/2 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-surface-bright p-0 sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:max-w-xl sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-outline-variant" showCloseButton={false}>
+      <DialogContent className="fixed bottom-auto left-1/2 right-auto top-0 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none -translate-x-1/2 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-surface-bright p-0 sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:max-w-xl sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-outline-variant" keyboardAware showCloseButton={false}>
         <CaptureHeading mode={initialMode} />
         <CaptureComposer initialMode={initialMode} key={`${open ? "open" : "closed"}-${initialMode}`} onClose={onClose} />
       </DialogContent>

@@ -94,7 +94,7 @@ function PendingReminderModal({ reminder, total, busy, customDate, onCustomDateC
 }) {
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onDismiss(); }}>
-      <DialogContent className="flex max-h-[90dvh] max-w-md flex-col gap-0 overflow-hidden rounded-lg border-outline-variant bg-surface p-0" showCloseButton={false}>
+      <DialogContent className="flex max-h-[90dvh] max-w-md flex-col gap-0 overflow-hidden rounded-lg border-outline-variant bg-surface p-0" keyboardAware showCloseButton={false}>
         <DialogHeader className="flex shrink-0 flex-row items-center justify-between border-b border-outline-variant bg-surface-bright px-5 py-4 text-left">
           <div>
             <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">RECORDATORIOS PENDIENTES · {total} {total === 1 ? "AVISO" : "AVISOS"}</p>

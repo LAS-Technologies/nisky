@@ -296,6 +296,7 @@ function EditProjectModal({ canRename, name, description, targetDate, color, tar
       <DialogContent
         className="top-auto bottom-0 flex h-[min(90dvh,48rem)] max-h-[90dvh] w-full max-w-none translate-y-0 flex-col gap-0 overflow-hidden rounded-t-2xl rounded-b-none border-[#dde1e2] bg-white p-0 sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-y-1/2 sm:rounded-2xl"
         data-keyboard-sheet
+        keyboardAware
         showCloseButton={false}
       >
         <DialogHeader className="flex flex-row items-center justify-between border-b border-[#e7e9e8] px-5 py-4 text-left">
