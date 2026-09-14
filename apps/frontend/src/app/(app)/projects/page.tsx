@@ -236,7 +236,7 @@ function CreateProjectModal({
 
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
-      <DialogContent className="top-auto bottom-0 flex h-auto max-h-[85dvh] w-full max-w-md translate-y-0 flex-col gap-0 overflow-hidden rounded-t-lg rounded-b-none border-outline-variant bg-surface p-0 data-open:zoom-in-100 data-closed:zoom-out-100 sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[85vh] sm:-translate-y-1/2 sm:rounded-lg" data-keyboard-sheet showCloseButton={false}>
+      <DialogContent className="top-auto bottom-0 flex h-[min(90dvh,48rem)] max-h-[90dvh] w-full max-w-none translate-y-0 flex-col gap-0 overflow-hidden rounded-t-2xl rounded-b-none border-outline-variant bg-surface p-0 sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-y-1/2 sm:rounded-2xl" data-keyboard-sheet showCloseButton={false}>
         <DialogHeader className="flex shrink-0 flex-row items-center justify-between border-b border-outline-variant bg-surface-bright px-5 py-4 text-left">
           <DialogTitle className="flex items-center gap-2 font-headline-xs text-headline-xs font-bold normal-case tracking-normal text-primary">
             <FolderKanban size={16} /> Nuevo proyecto
@@ -248,7 +248,7 @@ function CreateProjectModal({
             </button>
           </DialogClose>
         </DialogHeader>
-        <div className="min-h-0 flex-1 flex flex-col gap-4 overflow-y-auto overscroll-contain p-5" data-modal-scroll>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5" data-modal-scroll>
           <label className="block">
             <span className="font-label-caps text-label-caps text-on-surface-variant">NOMBRE</span>
             <input
@@ -277,19 +277,19 @@ function CreateProjectModal({
               <ColorPicker onChange={setColor} value={color} />
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
-               className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 font-body-sm text-body-sm text-on-primary hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50"
-              disabled={busy || !name.trim()}
-              onClick={() => void submit()}
-              type="button"
-            >
-              <Check size={14} /> Crear
-            </button>
-            <DialogClose asChild>
-               <button className="flex-1 rounded-md border border-outline-variant px-3 py-2 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high" type="button">Cancelar</button>
-            </DialogClose>
-          </div>
+        </div>
+        <div className="flex shrink-0 justify-end gap-2 border-t border-outline-variant bg-surface-container-low px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+          <DialogClose asChild>
+            <button className="min-h-11 rounded-md border border-outline-variant px-4 py-2 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high" type="button">Cancelar</button>
+          </DialogClose>
+          <button
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-body-sm text-body-sm text-on-primary hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50"
+            disabled={busy || !name.trim()}
+            onClick={() => void submit()}
+            type="button"
+          >
+            <Check size={14} /> Crear
+          </button>
         </div>
       </DialogContent>
     </Dialog>
