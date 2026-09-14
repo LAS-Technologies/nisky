@@ -48,8 +48,9 @@ export async function processTaskDueNotices(): Promise<TaskDueNoticeResult> {
 
   const candidates = await prisma.task.findMany({
     where: {
-      status: "PENDING",
+      status: { in: ["PENDING", "IN_PROGRESS"] },
       archivedAt: null,
+      OR: [{ lastDueWarnedAt: null }, { lastDueWarnedAt: { lt: toUtc(today) } }],
       dueDate: { gte: toUtc(today), lt: toUtc(tomorrow.plus({ days: 1 })) },
     },
     include: { project: true },
@@ -141,10 +142,10 @@ async function sendMorningDigest() {
       if (!settings.morningDigest) continue;
       const [dueToday, overdue, blocks] = await Promise.all([
         prisma.task.count({
-          where: { userId, status: "PENDING", archivedAt: null, dueDate: { gte: toUtc(today), lt: toUtc(tomorrow) } },
+          where: { userId, status: { in: ["PENDING", "IN_PROGRESS"] }, archivedAt: null, dueDate: { gte: toUtc(today), lt: toUtc(tomorrow) } },
         }),
         prisma.task.count({
-          where: { userId, status: "PENDING", archivedAt: null, dueDate: { lt: toUtc(today), gt: toUtc(yesterday) } },
+          where: { userId, status: { in: ["PENDING", "IN_PROGRESS"] }, archivedAt: null, dueDate: { lt: toUtc(today), gt: toUtc(yesterday) } },
         }),
         prisma.timeBlock.findMany({
           where: { userId, isActive: true },

@@ -55,6 +55,12 @@ export default function RegisterPage() {
               <Field label="Nombre" error={errors.name?.message}>
                 <input autoComplete="name" className="field" type="text" {...register("name")} />
               </Field>
+              <Field label="Nombre de usuario (opcional)" error={errors.username?.message}>
+                <span className="relative block">
+                  <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-data-mono text-data-mono text-on-surface-variant">@</span>
+                  <input autoComplete="username" className="field pl-8" placeholder="tu_usuario" type="text" {...register("username")} />
+                </span>
+              </Field>
               <Field label="Correo electrónico" error={errors.email?.message}>
                 <input autoComplete="email" className="field" type="email" {...register("email")} />
               </Field>

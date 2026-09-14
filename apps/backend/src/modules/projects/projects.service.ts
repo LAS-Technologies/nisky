@@ -196,7 +196,7 @@ export class ProjectService {
 
   async listUserProjects(userId: string) {
     const projectInclude = {
-      _count: { select: { tasks: { where: { archivedAt: null } } } },
+      _count: { select: { tasks: { where: { archivedAt: null, status: "PENDING" } } } },
       members: {
         take: 4,
         include: { user: { select: { id: true, email: true, name: true, username: true, avatarUrl: true } } },

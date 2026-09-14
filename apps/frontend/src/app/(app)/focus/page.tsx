@@ -237,8 +237,6 @@ function FocusPageContent() {
 
   const startPhase = useCallback(
     async (nextPhase: PomodoroPhase, nextCycleIndex: number) => {
-      if (supportsDocumentPictureInPicture()) void globalPomodoro.openPictureInPicture();
-      else openPomodoroWindow();
       try {
         const started = await mutations.start.mutateAsync({
           phase: nextPhase,
@@ -258,6 +256,18 @@ function FocusPageContent() {
     },
     [globalPomodoro, mutations.start, selectedTaskId],
   );
+
+  const openPomodoroWindowManually = () => {
+    if (supportsDocumentPictureInPicture()) {
+      void globalPomodoro.openPictureInPicture().then((opened) => {
+        if (!opened && !openPomodoroWindow()) {
+          toast.error("El navegador bloqueó la ventana del Pomodoro.");
+        }
+      });
+      return;
+    }
+    if (!openPomodoroWindow()) toast.error("El navegador bloqueó la ventana del Pomodoro.");
+  };
 
   const completeSession = useCallback(async () => {
     if (!currentSession || completionInFlight.current) return;
@@ -501,6 +511,7 @@ function FocusPageContent() {
           onPause={() => void pauseResume()}
           onResume={() => void pauseResume()}
           onSkipBreak={() => void skipBreak()}
+          onOpenPomodoroWindow={openPomodoroWindowManually}
           onStart={() => void startPhase(phase, cycleIndex)}
           onStop={() => void stop()}
           paused={Boolean(paused)}

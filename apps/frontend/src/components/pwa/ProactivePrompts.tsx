@@ -99,26 +99,19 @@ export function ProactivePrompts() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthPage, isSubscribed]);
 
-  const snoozeInstall = useCallback(() => {
-    writePromptState(INSTALL_KEY, { ...readPromptState(INSTALL_KEY), dismissedAt: new Date().toISOString() });
-    setInstallVisible(false);
-  }, []);
-
   const dismissNotif = useCallback(() => {
     const next = { ...readPromptState(NOTIF_KEY), dismissCount: readPromptState(NOTIF_KEY).dismissCount + 1, dismissedAt: new Date().toISOString() };
     writePromptState(NOTIF_KEY, next);
     setNotifVisible(false);
     setNotifBlocked(false);
-    snoozeInstall();
-  }, [snoozeInstall]);
+  }, []);
 
   const neverAskNotif = useCallback(() => {
     writePromptState(NOTIF_KEY, { dismissCount: MAX_DISMISS, dismissedAt: null, neverAsk: true });
     setNotifVisible(false);
     setNotifBlocked(false);
     setNotifGranted(false);
-    snoozeInstall();
-  }, [snoozeInstall]);
+  }, []);
 
   const acceptNotif = useCallback(async () => {
     const ok = await subscribe();
@@ -134,9 +127,8 @@ export function ProactivePrompts() {
       setNotifVisible(false);
       setNotifBlocked(false);
       setNotifGranted(false);
-      snoozeInstall();
     }
-  }, [subscribe, snoozeInstall]);
+  }, [subscribe]);
 
   const dismissInstall = useCallback(() => {
     const next = { ...readPromptState(INSTALL_KEY), dismissCount: readPromptState(INSTALL_KEY).dismissCount + 1, dismissedAt: new Date().toISOString() };
@@ -165,7 +157,8 @@ export function ProactivePrompts() {
     }
   }, [installEvent, dismissInstall]);
 
-  // Prioridad: notificaciones > instalación. Nunca dos a la vez.
+  // La instalación queda en cola mientras el aviso de notificaciones está abierto.
+  // Solo se muestra después de cerrar o resolver el aviso anterior.
   const showInstall = installVisible && !notifVisible && !notifBlocked && !notifGranted;
   const notifPromptOpen = notifVisible || notifBlocked || notifGranted;
 

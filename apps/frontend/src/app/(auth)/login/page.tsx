@@ -50,8 +50,8 @@ export default function LoginPage() {
         </div>
 
         <form className="space-y-5" method="post" onSubmit={handleSubmit((values) => mutate(values))}>
-          <Field label="Correo electrónico" error={errors.email?.message}>
-            <input autoComplete="email" className="field" type="email" {...register("email")} />
+          <Field label="Correo o nombre de usuario" error={errors.identifier?.message}>
+            <input autoComplete="username" className="field" placeholder="correo@ejemplo.com o @usuario" type="text" {...register("identifier")} />
           </Field>
           <Field label="Contraseña" error={errors.password?.message}>
             <PasswordInput autoComplete="current-password" {...register("password")} />

@@ -10,6 +10,7 @@ import type { LoginDto, RegisterDto } from "./auth.validator";
 
 const MAX_ACTIVE_REFRESH_TOKENS = 5;
 const REFRESH_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 7);
+const DUMMY_PASSWORD_HASH = "$2b$12$Cu2.y/BwOECUmL7k6geg4u3GMmfmB4/ASHg3Wd.oHv0JGUHU3.pii";
 
 type RequestMetadata = { userAgent?: string; ip?: string };
 
@@ -72,8 +73,17 @@ export class AuthService {
   }
 
   async login(data: LoginDto, metadata: RequestMetadata) {
-    const user = await prisma.user.findUnique({ where: { email: data.email } });
-    if (!user || !(await bcrypt.compare(data.password, user.passwordHash))) {
+    const normalizedIdentifier = data.identifier.trim().toLowerCase();
+    const usernameIdentifier = normalizedIdentifier.replace(/^@/, "");
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: normalizedIdentifier }, { username: usernameIdentifier }],
+      },
+    });
+    // Compare against a real bcrypt hash even when the identifier is unknown,
+    // avoiding a timing difference that could reveal registered accounts.
+    const passwordMatches = await bcrypt.compare(data.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!user || !passwordMatches) {
       throw new AppError("UNAUTHORIZED", "Credenciales inválidas");
     }
     if (!user.isActive) throw new AppError("FORBIDDEN", "Tu cuenta está deshabilitada");
@@ -98,6 +108,7 @@ export class AuthService {
       const created = await tx.user.create({
         data: {
           email: data.email,
+          ...(data.username !== undefined ? { username: data.username } : {}),
           name: data.name,
           passwordHash: await bcrypt.hash(data.password, 12),
           role: "USER",

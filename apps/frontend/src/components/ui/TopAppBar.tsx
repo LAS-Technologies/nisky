@@ -54,6 +54,7 @@ export function TopAppBar({ onMenu, onOpenCapture }: { onMenu: () => void; onOpe
           <button aria-label="Abrir menú" className="hidden rounded-md p-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary sm:flex lg:hidden" onClick={onMenu} type="button"><Menu size={20} /></button>
           <Link aria-label="Ir a Inicio" className="font-headline-lg text-headline-lg font-bold tracking-tight text-primary hover:underline lg:hidden" href="/">Nisky</Link>
         </div>
+        <PomodoroHeader />
       </div>
       <div className="hidden flex-1 md:block" />
       <h2 className="absolute left-1/2 hidden -translate-x-1/2 font-headline-sm text-headline-sm font-bold text-on-surface lg:block">{title}</h2>
@@ -69,8 +70,7 @@ export function TopAppBar({ onMenu, onOpenCapture }: { onMenu: () => void; onOpe
           Nota
            <kbd className="font-data-mono text-data-mono text-[10px] text-on-surface-variant">Alt+N</kbd>
          </button>
-          <PomodoroHeader />
-          <InvitationsPanel open={openPanel === "invitations"} onOpenChange={(open) => setOpenPanel(open ? "invitations" : null)} />
+           <InvitationsPanel open={openPanel === "invitations"} onOpenChange={(open) => setOpenPanel(open ? "invitations" : null)} />
            <div className="relative">
               <button aria-expanded={openPanel === "notifications"} aria-label={`Notificaciones${notices.length > 0 ? ` (${notices.length})` : ""}`} className="relative rounded-md p-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary" onClick={() => setOpenPanel((panel) => panel === "notifications" ? null : "notifications")} type="button">
              <Bell size={19} />

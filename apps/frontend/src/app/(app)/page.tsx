@@ -17,6 +17,7 @@ import { useHomeActivityQuery, useHomeOverviewQuery, useHabitsMatrixQuery } from
 import { useTaskMutations } from "@/features/tasks/hooks/useTasks";
 import type { Task } from "@/types/entities";
 import { useCapture } from "@/context/CaptureContext";
+import { UniversityIntegrationBanner } from "@/components/home/UniversityIntegrationBanner";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -108,6 +109,8 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
+
+          <UniversityIntegrationBanner />
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
             <div className="min-w-0 space-y-6 lg:col-span-7">

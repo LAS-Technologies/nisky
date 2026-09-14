@@ -1,4 +1,4 @@
-import { CheckCircle2, Pause, Play, SkipForward, Square } from "lucide-react";
+import { CheckCircle2, Pause, PictureInPicture, Play, SkipForward, Square } from "lucide-react";
 import type { PomodoroPhase } from "@/types/entities";
 
 const PRIMARY: Record<PomodoroPhase, string> = {
@@ -9,7 +9,7 @@ const PRIMARY: Record<PomodoroPhase, string> = {
 
 const SECONDARY = "rounded-lg border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high";
 
-export function Controls({ running, paused, phase, onStart, onPause, onResume, onStop, onSkipBreak, onCompletePomodoro }: { running: boolean; paused: boolean; phase: PomodoroPhase; onStart: () => void; onPause: () => void; onResume: () => void; onStop: () => void; onSkipBreak: () => void; onCompletePomodoro: () => void }) {
+export function Controls({ running, paused, phase, onStart, onPause, onResume, onStop, onSkipBreak, onCompletePomodoro, onOpenPomodoroWindow }: { running: boolean; paused: boolean; phase: PomodoroPhase; onStart: () => void; onPause: () => void; onResume: () => void; onStop: () => void; onSkipBreak: () => void; onCompletePomodoro: () => void; onOpenPomodoroWindow?: () => void }) {
   const breakPhase = phase !== "WORK";
   if (!running) {
     const startLabel = phase === "SHORT_BREAK" ? "Iniciar descanso corto" : phase === "LONG_BREAK" ? "Iniciar descanso largo" : "Iniciar Pomodoro";
@@ -55,6 +55,16 @@ export function Controls({ running, paused, phase, onStart, onPause, onResume, o
       >
         <CompleteIcon size={18} /> {completeLabel}
       </button>
+      {onOpenPomodoroWindow && (
+        <button
+          aria-label="Abrir Pomodoro en una ventana separada"
+          className={`flex w-full items-center justify-center gap-2 border px-5 py-3 font-body-sm text-body-sm ${SECONDARY}`}
+          onClick={onOpenPomodoroWindow}
+          type="button"
+        >
+          <PictureInPicture size={16} /> Abrir ventana del Pomodoro
+        </button>
+      )}
     </div>
   );
 }

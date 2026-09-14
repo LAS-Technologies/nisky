@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthProvider";
 import { PasswordSection } from "@/components/admin/PasswordSection";
 import { PatSection } from "@/components/admin/PatSection";
@@ -27,6 +27,14 @@ export default function SettingsPage() {
   const isAdmin = user?.role === "ADMIN";
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
   const [active, setActive] = useState<Tab>(visibleTabs[0]?.id ?? "profile");
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if (!requested || !tabs.some((tab) => tab.id === requested && (!tab.adminOnly || isAdmin))) return;
+    // Allow the home integration banner to open the correct settings section.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActive(requested as Tab);
+  }, [isAdmin]);
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-background p-container-padding sm:p-section-gap">

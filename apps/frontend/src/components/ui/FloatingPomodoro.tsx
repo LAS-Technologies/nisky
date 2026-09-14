@@ -152,7 +152,7 @@ export function PomodoroHeader() {
   return (
     <div
       aria-label="Pomodoro en curso"
-      className="flex items-center gap-0.5 rounded-lg border border-primary/25 bg-primary-fixed/60 px-1 py-1 sm:hidden"
+      className="flex items-center gap-0.5 rounded-lg border border-primary/25 bg-primary-fixed/60 px-1 py-1"
     >
       <Timer aria-hidden="true" className="mx-1 text-primary" size={15} />
       <button

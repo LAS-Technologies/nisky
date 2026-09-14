@@ -182,7 +182,7 @@ export function MembersPanel({ project }: { project: Project }) {
           </p>
           <div className="divide-y divide-outline-variant">
             {pendingInvitations.map((invitation) => (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md px-2 py-2.5 -mx-2 hover:bg-surface-container-low" key={invitation.id}>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-2 py-2.5 -mx-2 hover:bg-surface-container-low" key={invitation.id}>
                 <Avatar
                   avatarUrl={invitation.invitee?.avatarUrl ?? null}
                   email={invitation.email}

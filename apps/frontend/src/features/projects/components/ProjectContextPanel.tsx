@@ -46,9 +46,10 @@ export function ProjectContextPanel({ summary, onOpenTask, showProgress = true, 
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="project-eyebrow">COLABORACIÓN</p>
-             <h2 className="mt-1 text-[16px] font-semibold text-[#1f2933]">Equipo</h2>
+            <h2 className="mt-1 text-[16px] font-semibold text-[#1f2933]">Equipo</h2>
+            <p className="mt-0.5 text-[11px] text-[#778186]">Pendientes asignadas por miembro</p>
           </div>
-           <Users className="text-[#778186]" size={17} />
+          <Users className="text-[#778186]" size={17} />
         </div>
         <div className="mt-4 space-y-3">
           {summary.taskCountsByMember.map((member) => (
