@@ -60,7 +60,7 @@ export const taskPriorityStyles: Record<TaskPriority, string> = {
 };
 
 export const taskBadgeClass =
-  "inline-flex h-7 max-w-full cursor-pointer items-center rounded-full border px-2.5 py-1 font-label-md text-label-md font-semibold leading-4 outline-none transition-colors disabled:cursor-wait disabled:opacity-60";
+  "inline-flex h-8 max-w-full cursor-pointer items-center rounded-full border px-2.5 py-1 font-label-md text-label-md font-semibold leading-4 outline-none transition-colors disabled:cursor-wait disabled:opacity-60";
 
 export function TaskStatusSelect({
   value,
@@ -82,7 +82,7 @@ export function TaskStatusSelect({
         className={cn(
           taskBadgeClass,
           taskStatusStyles[value],
-          "gap-1.5 pr-2 text-right",
+          "gap-1.5 pr-2 text-left",
           className,
         )}
         disabled={disabled}
@@ -120,7 +120,7 @@ export function TaskPrioritySelect({
         className={cn(
           taskBadgeClass,
           taskPriorityStyles[value],
-          "gap-1.5 pr-2 text-right",
+          "gap-1.5 pr-2 text-left",
           className,
         )}
         disabled={disabled}
@@ -175,7 +175,7 @@ export function TaskAssigneeSelect({
         <button
           aria-label={ariaLabel}
           className={cn(
-            "inline-flex min-w-0 max-w-[13rem] items-center gap-1.5 rounded-md border border-transparent px-1 py-1 text-right font-body-sm text-body-sm font-medium text-on-surface outline-none hover:bg-surface-container-low hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-wait disabled:opacity-60",
+            "inline-flex min-h-8 min-w-0 max-w-[13rem] items-center gap-1.5 rounded-md border border-transparent px-1 py-1 text-left font-body-sm text-body-sm font-medium text-on-surface outline-none hover:bg-surface-container-low hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-wait disabled:opacity-60",
             className,
           )}
           disabled={disabled}

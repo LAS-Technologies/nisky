@@ -138,13 +138,13 @@ function PreviewDetail({
   icon: Icon,
   label,
   children,
-}: {
-  icon: LucideIcon;
-  label: string;
-  children: ReactNode;
-}) {
+  }: {
+    icon: LucideIcon;
+    label: string;
+    children: ReactNode;
+  }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-[13px] leading-5">
+    <div className="grid grid-cols-[minmax(8.5rem,10rem)_minmax(0,1fr)] items-center gap-3 text-[13px] leading-5">
       <dt className="flex min-w-0 items-center gap-2 text-on-surface-variant">
         <Icon
           aria-hidden="true"
@@ -153,7 +153,7 @@ function PreviewDetail({
         />
         <span>{label}</span>
       </dt>
-      <dd className="min-w-0 break-words text-right font-medium text-on-surface">
+      <dd className="min-w-0 break-words text-left font-medium text-on-surface">
         {children}
       </dd>
     </div>
@@ -208,6 +208,7 @@ export function TaskDetailsPanel({
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editingSubtaskTitle, setEditingSubtaskTitle] = useState("");
+  const [completedSubtasksOpen, setCompletedSubtasksOpen] = useState(true);
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(current.title);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
@@ -222,9 +223,6 @@ export function TaskDetailsPanel({
   const [dueDateDraft, setDueDateDraft] = useState("");
   const [pomodoroEstimateDraft, setPomodoroEstimateDraft] = useState(
     current.pomodoroEstimate,
-  );
-  const [activePanel, setActivePanel] = useState<"details" | "comments">(
-    "details",
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [taskDeleting, setTaskDeleting] = useState(false);
@@ -322,9 +320,11 @@ export function TaskDetailsPanel({
       title: subtaskTitleOverrides[subtask.id] ?? subtask.title,
       completed: subtaskOverrides[subtask.id] ?? subtask.completed,
     }));
-  const completedSubtasks = visibleSubtasks.filter(
+  const pendingSubtasks = visibleSubtasks.filter((subtask) => !subtask.completed);
+  const completedSubtaskItems = visibleSubtasks.filter(
     (subtask) => subtask.completed,
-  ).length;
+  );
+  const completedSubtasks = completedSubtaskItems.length;
   const subtaskProgress =
     visibleSubtasks.length > 0
       ? Math.round((completedSubtasks / visibleSubtasks.length) * 100)
@@ -561,7 +561,7 @@ export function TaskDetailsPanel({
     <button
       aria-label="Seleccionar fecha de vencimiento"
       className={cn(
-        "max-w-[14rem] truncate rounded-md px-1 py-1 text-right font-medium outline-none hover:bg-surface-container-low hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/20",
+        "inline-flex min-h-8 max-w-[14rem] truncate rounded-md px-1 py-1 text-left font-medium outline-none hover:bg-surface-container-low hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/20",
         !displayDueDate && "text-on-surface-variant",
         overdue && "font-semibold text-error",
       )}
@@ -763,6 +763,93 @@ export function TaskDetailsPanel({
     }
   };
 
+  const renderSubtask = (subtask: (typeof visibleSubtasks)[number]) => (
+    <div className="group flex min-h-10 items-center gap-2 py-1" key={subtask.id}>
+      <button
+        aria-checked={subtask.completed}
+        aria-label={`${subtask.completed ? "Desmarcar" : "Marcar"} subtarea: ${subtask.title}`}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-primary hover:bg-primary-fixed disabled:cursor-wait disabled:opacity-60"
+        disabled={pendingSubtaskId !== null || editingSubtaskId !== null}
+        onClick={() => void toggleSubtask(subtask.id, !subtask.completed)}
+        role="checkbox"
+        type="button"
+      >
+        {subtask.completed ? <CheckCircle2 size={17} /> : <Circle className="text-outline" size={17} />}
+      </button>
+      <span
+        aria-label={
+          editingSubtaskId === subtask.id
+            ? `Editar subtarea: ${subtask.title}`
+            : `Editar nombre de la subtarea: ${subtask.title}`
+        }
+        aria-multiline={editingSubtaskId === subtask.id ? false : undefined}
+        aria-pressed={editingSubtaskId === subtask.id ? true : undefined}
+        className={cn(
+          "min-w-0 flex-1 text-left font-body-sm text-body-sm leading-5 text-on-surface outline-none",
+          subtask.completed && "text-on-surface-variant line-through",
+          editingSubtaskId === subtask.id ? "cursor-text" : "cursor-text hover:text-primary",
+        )}
+        contentEditable={editingSubtaskId === subtask.id}
+        onBlur={() => {
+          if (skipEditBlurRef.current) {
+            skipEditBlurRef.current = false;
+            return;
+          }
+          void saveSubtaskTitle();
+        }}
+        onClick={() => beginSubtaskEdit(subtask.id, subtask.title)}
+        onInput={(event) => {
+          if (editingSubtaskId !== subtask.id) return;
+          const title = (event.currentTarget.textContent ?? "").replaceAll("\u00a0", " ");
+          setEditingSubtaskTitle(title);
+          setSubtaskTitleOverrides((previous) => ({
+            ...previous,
+            [subtask.id]: title,
+          }));
+        }}
+        onKeyDown={(event) => {
+          if (editingSubtaskId !== subtask.id) {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              beginSubtaskEdit(subtask.id, subtask.title);
+            }
+            return;
+          }
+          if (event.key === "Enter") {
+            event.preventDefault();
+            skipEditBlurRef.current = true;
+            void saveSubtaskTitle();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            skipEditBlurRef.current = true;
+            cancelSubtaskEdit();
+          }
+        }}
+        ref={editingSubtaskId === subtask.id ? editingSubtaskRef : undefined}
+        role={editingSubtaskId === subtask.id ? "textbox" : "button"}
+        spellCheck={false}
+        tabIndex={pendingSubtaskId !== null ? -1 : 0}
+        suppressContentEditableWarning
+      >
+        {subtask.title}
+      </span>
+      <button
+        aria-label={`Eliminar subtarea: ${subtask.title}`}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-on-surface-variant opacity-100 transition-opacity hover:bg-error-container hover:text-error disabled:cursor-wait disabled:opacity-50 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+        disabled={
+          pendingSubtaskId !== null ||
+          (editingSubtaskId !== null && editingSubtaskId !== subtask.id)
+        }
+        onClick={() => void deleteSubtask(subtask.id)}
+        onMouseDown={(event) => event.preventDefault()}
+        type="button"
+      >
+        <Trash2 size={15} />
+      </button>
+    </div>
+  );
+
   const openDescriptionEditor = () => {
     cancelDescriptionRef.current = false;
     setDescriptionDraft(current.description ?? "");
@@ -843,53 +930,16 @@ export function TaskDetailsPanel({
             </div>
           </div>
         }
-        headerExtra={
-          <div className="border-b border-outline-variant px-5 py-3 lg:px-6">
-            <div
-              aria-label="Secciones de la tarea"
-              className="flex rounded-xl bg-surface-container-low p-1"
-              role="tablist"
-            >
-              <button
-                aria-selected={activePanel === "details"}
-                className={cn(
-                  "flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 font-label-md text-label-md font-semibold transition-colors",
-                  activePanel === "details"
-                    ? "bg-surface-container-lowest text-primary shadow-sm"
-                    : "text-on-surface-variant hover:text-on-surface",
-                )}
-                onClick={() => setActivePanel("details")}
-                role="tab"
-                type="button"
-              >
-                <ListChecks aria-hidden="true" size={15} /> Detalles
-              </button>
-              <button
-                aria-selected={activePanel === "comments"}
-                className={cn(
-                  "flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 font-label-md text-label-md font-semibold transition-colors",
-                  activePanel === "comments"
-                    ? "bg-surface-container-lowest text-primary shadow-sm"
-                    : "text-on-surface-variant hover:text-on-surface",
-                )}
-                onClick={() => setActivePanel("comments")}
-                role="tab"
-                type="button"
-              >
-                <MessageSquare aria-hidden="true" size={15} /> Comentarios
-              </button>
-            </div>
-          </div>
-        }
         onClose={handleClose}
         tall
-        title={
-          titleEditing ? (
+        bodyHeader={
+          <div className="mb-5 min-w-0">
+            {titleEditing ? (
             <textarea
               aria-busy={pendingTaskField === "title"}
               aria-label="Título de la tarea"
               autoComplete="off"
-              className="block max-h-28 min-h-0 w-full min-w-0 resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 text-xl leading-7 text-on-surface outline-none focus:border-0 focus:outline-none focus:ring-0 disabled:cursor-wait disabled:opacity-60"
+              className="block max-h-28 min-h-0 w-full min-w-0 resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-headline-lg text-headline-lg text-on-surface outline-none focus:border-0 focus:outline-none focus:ring-0 [overflow-wrap:anywhere]"
               data-vaul-no-drag
               disabled={pendingTaskField !== null}
               maxLength={200}
@@ -926,20 +976,22 @@ export function TaskDetailsPanel({
               onClick={openTitleEditor}
               type="button"
             >
-              <span className="min-w-0 break-words">{displayTitle}</span>
+              <span className="min-w-0 break-words font-headline-lg text-headline-lg text-on-surface [overflow-wrap:anywhere]">{displayTitle}</span>
               <Pencil
                 aria-hidden="true"
                 className="mt-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-60"
-                size={13}
+                size={14}
               />
             </button>
-          )
+            )}
+          </div>
         }
+        title={displayTitle}
+        titlePlacement="body"
       >
-        {activePanel === "details" ? (
-          <div className="space-y-7">
-            <section className="rounded-2xl border border-outline-variant/70 bg-surface-container-low/70 p-4">
-              <dl className="space-y-3">
+        <div className="space-y-7">
+          <section className="space-y-3">
+            <dl className="space-y-3">
                 <PreviewDetail icon={Circle} label="Estado">
                   <TaskStatusSelect
                     disabled={pendingTaskField !== null}
@@ -1137,66 +1189,46 @@ export function TaskDetailsPanel({
                     </Popover>
                   )}
                 </PreviewDetail>
-                <PreviewDetail icon={UserRound} label="Creado por">
-                  {current.user ? (
-                    <span className="inline-flex min-w-0 max-w-[13rem] items-center gap-1.5 text-left">
-                      <Avatar
-                        avatarUrl={current.user.avatarUrl}
-                        email={current.user.email}
-                        name={current.user.name}
-                        size="sm"
-                      />
-                      <span className="min-w-0 truncate">
-                        {current.user.name ?? current.user.email}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="text-on-surface-variant">Sin información</span>
-                  )}
-                </PreviewDetail>
-                <PreviewDetail icon={CalendarPlus} label="Creada el">
-                  <span>{createdAtLabel(current.createdAt)}</span>
+                <PreviewDetail icon={UserRound} label="Asignado">
+                  <TaskAssigneeSelect
+                    disabled={
+                      pendingTaskField !== null ||
+                      !displayProjectId ||
+                      membersQuery.isLoading
+                    }
+                    onChange={(assigneeId) =>
+                      void updateTaskField(
+                        "assigneeId",
+                        { assigneeId },
+                        { assigneeId },
+                        "No pudimos actualizar el responsable.",
+                      )
+                    }
+                    options={assigneeOptions}
+                    value={displayAssigneeId}
+                  />
                 </PreviewDetail>
               </dl>
               <button
                 aria-controls="task-preview-extra-details"
                 aria-expanded={detailsOpen}
-                className="mt-4 flex w-full items-center justify-between border-t border-outline-variant/70 pt-3 text-left font-label-md text-label-md font-semibold text-on-surface-variant outline-none hover:text-primary focus-visible:text-primary"
+                className="mt-3 flex w-full items-center gap-2 border-t border-outline-variant/50 py-2.5 text-left font-label-md text-label-md font-semibold text-on-surface-variant outline-none hover:text-primary focus-visible:text-primary"
                 onClick={() => setDetailsOpen((open) => !open)}
                 type="button"
               >
                 <span>{detailsOpen ? "Ocultar detalles" : "Más detalles"}</span>
                 <ChevronDown
                   aria-hidden="true"
-                  className={cn(
-                    "size-4 transition-transform",
-                    detailsOpen && "rotate-180",
+                    className={cn(
+                      "size-4 transition-transform",
+                      detailsOpen && "rotate-180",
                   )}
                 />
               </button>
               {detailsOpen && (
                 <dl className="mt-3 space-y-3" id="task-preview-extra-details">
-                  <PreviewDetail icon={UserRound} label="Responsable">
-                    <TaskAssigneeSelect
-                      disabled={
-                        pendingTaskField !== null ||
-                        !displayProjectId ||
-                        membersQuery.isLoading
-                      }
-                      onChange={(assigneeId) =>
-                        void updateTaskField(
-                          "assigneeId",
-                          { assigneeId },
-                          { assigneeId },
-                          "No pudimos actualizar el responsable.",
-                        )
-                      }
-                      options={assigneeOptions}
-                      value={displayAssigneeId}
-                    />
-                  </PreviewDetail>
                   <PreviewDetail icon={Repeat2} label="Recurrencia">
-                    <span className="flex flex-col items-end gap-2">
+                    <span className="flex flex-col items-start gap-2">
                       <Select
                         disabled={pendingTaskField !== null}
                         onValueChange={updateRecurrence}
@@ -1299,21 +1331,29 @@ export function TaskDetailsPanel({
                       </button>
                     </span>
                   </PreviewDetail>
+                  <PreviewDetail icon={UserRound} label="Creado por">
+                    {current.user ? (
+                      <span className="inline-flex min-w-0 max-w-[13rem] items-center gap-1.5 text-left">
+                        <Avatar
+                          avatarUrl={current.user.avatarUrl}
+                          email={current.user.email}
+                          name={current.user.name}
+                          size="sm"
+                        />
+                        <span className="min-w-0 truncate">
+                          {current.user.name ?? current.user.email}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-on-surface-variant">Sin información</span>
+                    )}
+                  </PreviewDetail>
+                  <PreviewDetail icon={CalendarPlus} label="Creada el">
+                    <span>{createdAtLabel(current.createdAt)}</span>
+                  </PreviewDetail>
                 </dl>
               )}
-            </section>
-
-            <TaskReferences
-              initialReferences={current.references}
-              taskId={current.id}
-            />
-
-            <TaskReminderPanel
-              dueDate={displayDueDate}
-              recurrence={displayRecurrence}
-              taskId={current.id}
-              taskTitle={current.title}
-            />
+          </section>
 
             <section className="space-y-2">
               <h3 className="font-label-caps text-label-caps uppercase text-on-surface-variant">
@@ -1372,210 +1412,121 @@ export function TaskDetailsPanel({
               )}
             </section>
 
-            <section className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-label-caps text-label-caps uppercase text-on-surface-variant">
-                  Subtareas
-                </h3>
-                <span className="font-data-mono text-data-mono text-[11px] font-semibold text-on-surface-variant">
-                  {visibleSubtasks.length > 0
-                    ? `${completedSubtasks}/${visibleSubtasks.length}`
-                    : "Ninguna"}
-                </span>
-              </div>
-              {visibleSubtasks.length > 0 && (
-                <>
-                  <div
-                    aria-label={`Progreso de subtareas: ${subtaskProgress}%`}
-                    aria-valuemax={100}
-                    aria-valuemin={0}
-                    aria-valuenow={subtaskProgress}
-                    className="h-1.5 overflow-hidden rounded-full bg-surface-container"
-                    role="progressbar"
-                  >
-                    <div
-                      className="h-full rounded-full bg-primary transition-[width]"
-                      style={{ width: `${subtaskProgress}%` }}
-                    />
-                  </div>
-                  <div className="divide-y divide-outline-variant/70 border-y border-outline-variant/70">
-                    {visibleSubtasks.map((subtask) => (
-                      <div
-                        className="flex min-h-10 items-center gap-2 py-1"
-                        key={subtask.id}
-                      >
-                        <button
-                          aria-checked={subtask.completed}
-                          aria-label={`${subtask.completed ? "Desmarcar" : "Marcar"} subtarea: ${subtask.title}`}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-primary hover:bg-primary-fixed disabled:cursor-wait disabled:opacity-60"
-                          disabled={
-                            pendingSubtaskId !== null ||
-                            editingSubtaskId !== null
-                          }
-                          onClick={() =>
-                            void toggleSubtask(subtask.id, !subtask.completed)
-                          }
-                          role="checkbox"
-                          type="button"
-                        >
-                          {subtask.completed ? (
-                            <CheckCircle2 size={17} />
-                          ) : (
-                            <Circle className="text-outline" size={17} />
-                          )}
-                        </button>
-                        <span
-                          aria-label={
-                            editingSubtaskId === subtask.id
-                              ? `Editar subtarea: ${subtask.title}`
-                              : `Editar nombre de la subtarea: ${subtask.title}`
-                          }
-                          aria-multiline={
-                            editingSubtaskId === subtask.id ? false : undefined
-                          }
-                          aria-pressed={
-                            editingSubtaskId === subtask.id ? true : undefined
-                          }
-                          className={cn(
-                            "min-w-0 flex-1 text-left font-body-sm text-body-sm leading-5 text-on-surface outline-none",
-                            subtask.completed &&
-                              "text-on-surface-variant line-through",
-                            editingSubtaskId === subtask.id
-                              ? "cursor-text"
-                              : "cursor-text hover:text-primary",
-                          )}
-                          contentEditable={editingSubtaskId === subtask.id}
-                          onBlur={() => {
-                            if (skipEditBlurRef.current) {
-                              skipEditBlurRef.current = false;
-                              return;
-                            }
-                            void saveSubtaskTitle();
-                          }}
-                          onClick={() =>
-                            beginSubtaskEdit(subtask.id, subtask.title)
-                          }
-                          onInput={(event) => {
-                            if (editingSubtaskId !== subtask.id) return;
-                            const title = (
-                              event.currentTarget.textContent ?? ""
-                            ).replaceAll("\u00a0", " ");
-                            setEditingSubtaskTitle(title);
-                            setSubtaskTitleOverrides((previous) => ({
-                              ...previous,
-                              [subtask.id]: title,
-                            }));
-                          }}
-                          onKeyDown={(event) => {
-                            if (editingSubtaskId !== subtask.id) {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                beginSubtaskEdit(subtask.id, subtask.title);
-                              }
-                              return;
-                            }
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              skipEditBlurRef.current = true;
-                              void saveSubtaskTitle();
-                            }
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              skipEditBlurRef.current = true;
-                              cancelSubtaskEdit();
-                            }
-                          }}
-                          ref={
-                            editingSubtaskId === subtask.id
-                              ? editingSubtaskRef
-                              : undefined
-                          }
-                          role={
-                            editingSubtaskId === subtask.id
-                              ? "textbox"
-                              : "button"
-                          }
-                          spellCheck={false}
-                          tabIndex={pendingSubtaskId !== null ? -1 : 0}
-                          suppressContentEditableWarning
-                        >
-                          {subtask.title}
-                        </span>
-                        <button
-                          aria-label={`Eliminar subtarea: ${subtask.title}`}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-on-surface-variant hover:bg-error-container hover:text-error disabled:cursor-wait disabled:opacity-50"
-                          disabled={
-                            pendingSubtaskId !== null ||
-                            (editingSubtaskId !== null &&
-                              editingSubtaskId !== subtask.id)
-                          }
-                          onClick={() => void deleteSubtask(subtask.id)}
-                          onMouseDown={(event) => event.preventDefault()}
-                          type="button"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              <form
-                className="flex items-center gap-2 rounded-lg border border-dashed border-outline-variant bg-surface-container-low px-2 py-1.5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void addSubtask();
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-container text-primary"
-                >
-                  <Plus size={14} />
-                </span>
-                <input
-                  aria-label="Nueva subtarea"
-                  className="h-8 min-w-0 flex-1 bg-transparent px-1 font-body-sm text-body-sm text-on-surface outline-none placeholder:text-on-surface-variant"
-                  disabled={isAddingSubtask}
-                  onChange={(event) => setSubtaskTitle(event.target.value)}
-                  placeholder="Añadir subtarea..."
-                  value={subtaskTitle}
-                />
-                <button
-                  aria-label="Añadir subtarea"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-primary hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-40"
-                  disabled={!subtaskTitle.trim() || isAddingSubtask}
-                  type="submit"
-                >
-                  <Check size={15} />
-                </button>
-              </form>
-            </section>
-          </div>
-        ) : (
-          <div className="flex h-[min(60dvh,32rem)] min-h-[24rem] flex-col rounded-2xl border border-outline-variant/70 bg-surface-container-low/40 p-4">
-            <div className="flex items-start gap-3 border-b border-outline-variant/70 pb-4">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary-container text-secondary">
-                <MessageSquare aria-hidden="true" size={17} />
+            <TaskReferences
+              initialReferences={current.references}
+              taskId={current.id}
+            />
+
+            <TaskReminderPanel
+              dueDate={displayDueDate}
+              recurrence={displayRecurrence}
+              taskId={current.id}
+              taskTitle={current.title}
+            />
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-label-caps text-label-caps uppercase text-on-surface-variant">
+                Subtareas
+              </h3>
+              <span className="font-data-mono text-data-mono text-[11px] font-semibold text-on-surface-variant">
+                {visibleSubtasks.length > 0
+                  ? `${completedSubtasks}/${visibleSubtasks.length}`
+                  : "Ninguna"}
               </span>
-              <div className="min-w-0">
-                <h2 className="font-label-md text-label-md font-semibold text-on-surface">
-                  Comentarios
-                </h2>
-                <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">
-                  Añade contexto o deja una nota sobre esta tarea.
-                </p>
+            </div>
+            {completedSubtasks > 0 && (
+              <div
+                aria-label={`Progreso de subtareas: ${subtaskProgress}%`}
+                aria-valuemax={100}
+                aria-valuemin={0}
+                aria-valuenow={subtaskProgress}
+                className="h-1.5 overflow-hidden rounded-full bg-surface-container"
+                role="progressbar"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width]"
+                  style={{ width: `${subtaskProgress}%` }}
+                />
               </div>
-            </div>
-            <div className="min-h-0 flex-1 pt-4">
-              <CommentThread
-                kind="task"
-                id={current.id}
-                projectId={displayProjectId}
+            )}
+            {pendingSubtasks.length > 0 && (
+              <div className="space-y-0.5">
+                {pendingSubtasks.map(renderSubtask)}
+              </div>
+            )}
+            {completedSubtaskItems.length > 0 && (
+              <div className="space-y-1.5">
+                <button
+                  aria-controls={`completed-subtasks-${current.id}`}
+                  aria-expanded={completedSubtasksOpen}
+                  className="flex w-full items-center gap-2 text-left font-label-caps text-label-caps text-on-surface-variant hover:text-primary"
+                  onClick={() => setCompletedSubtasksOpen((open) => !open)}
+                  type="button"
+                >
+                  <span>Completadas</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={cn(
+                      "size-4 transition-transform",
+                      completedSubtasksOpen && "rotate-180",
+                    )}
+                  />
+                  <span className="font-data-mono text-data-mono text-[11px]">
+                    {completedSubtaskItems.length}
+                  </span>
+                </button>
+                {completedSubtasksOpen && (
+                  <div
+                    className="space-y-0.5"
+                    id={`completed-subtasks-${current.id}`}
+                  >
+                    {completedSubtaskItems.map(renderSubtask)}
+                  </div>
+                )}
+              </div>
+            )}
+            <form
+              className="mb-2 flex items-center gap-2 border-b border-outline-variant/50 py-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void addSubtask();
+              }}
+            >
+              <Plus aria-hidden="true" className="shrink-0 text-primary" size={15} />
+              <input
+                aria-label="Nueva subtarea"
+                className="h-8 min-w-0 flex-1 bg-transparent px-0 font-body-sm text-body-sm text-on-surface outline-none placeholder:text-on-surface-variant"
+                disabled={isAddingSubtask}
+                onChange={(event) => setSubtaskTitle(event.target.value)}
+                placeholder="Añadir subtarea..."
+                value={subtaskTitle}
               />
-            </div>
-          </div>
-        )}
+              <button
+                aria-label="Añadir subtarea"
+                className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!subtaskTitle.trim() || isAddingSubtask}
+                type="submit"
+              >
+                <Check aria-hidden="true" size={15} />
+              </button>
+            </form>
+          </section>
+
+          <section className="space-y-1">
+            <h3 className="flex items-center gap-2 font-label-caps text-label-caps uppercase text-on-surface-variant">
+              <MessageSquare aria-hidden="true" size={14} />
+              Comentarios
+            </h3>
+            <CommentThread
+              compact
+              kind="task"
+              id={current.id}
+              projectId={displayProjectId}
+            />
+          </section>
+
+        </div>
       </PreviewSheet>
       {confirmDelete && (
         <ConfirmModal

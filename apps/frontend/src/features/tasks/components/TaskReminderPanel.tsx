@@ -144,41 +144,39 @@ export function TaskReminderPanel({ taskId, taskTitle, dueDate, recurrence }: {
   };
 
   return (
-    <section aria-labelledby={headingId} className="rounded-xl border border-outline-variant/70 bg-surface-container-low/30 px-3 py-2.5">
-      <div className="flex items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-          <Bell aria-hidden="true" size={16} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-label-md text-label-md font-semibold text-on-surface" id={headingId}>Recordatorios</h3>
-            {taskReminders.length > 0 && <span aria-label={`${taskReminders.length} recordatorios`} className="rounded-full bg-surface-container px-1.5 py-0.5 font-data-mono text-data-mono text-[10px] text-on-surface-variant">{taskReminders.length}</span>}
-          </div>
-        </div>
+    <section aria-labelledby={headingId} className="space-y-2">
+      <div className="flex items-center gap-2">
+        <h3 className="flex items-center gap-2 font-label-caps text-label-caps uppercase text-on-surface-variant" id={headingId}>
+          <Bell aria-hidden="true" size={14} />
+          Recordatorios
+          {taskReminders.length > 0 && (
+            <span aria-label={`${taskReminders.length} recordatorios`} className="font-data-mono text-data-mono text-[11px]">
+              {taskReminders.length}
+            </span>
+          )}
+        </h3>
         {canAddReminder && (
           <button
             aria-controls={composerId}
             aria-expanded={composerOpen}
             aria-label={composerOpen ? "Cerrar opciones de recordatorio" : "Añadir recordatorio"}
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-primary shadow-sm hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-[12px] font-semibold text-on-surface-variant hover:bg-surface-container-low hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
             disabled={reminderMutations.create.isPending}
             onClick={toggleComposer}
-            title="Añadir recordatorio"
             type="button"
           >
-            {composerOpen ? <X aria-hidden="true" size={15} /> : <Plus aria-hidden="true" size={15} />}
+            {composerOpen ? <X aria-hidden="true" size={14} /> : <Plus aria-hidden="true" size={14} />}
+            {composerOpen ? "Cerrar" : "Añadir"}
           </button>
         )}
       </div>
       {taskReminders.length > 0 && (
-        <div className="mt-3 space-y-1.5">
+        <div className="divide-y divide-outline-variant/60 border-y border-outline-variant/70">
           {taskReminders.map((reminder) => (
-            <div className="group flex items-center gap-3 rounded-xl border border-outline-variant/70 bg-surface-container-lowest px-3 py-2.5 transition-colors hover:bg-surface-container-low" key={reminder.id}>
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                <Bell aria-hidden="true" size={14} />
-              </span>
+            <div className="group flex items-center gap-2 py-2" key={reminder.id}>
+              <Bell aria-hidden="true" className="shrink-0 text-primary" size={14} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-body-sm text-body-sm font-semibold text-on-surface">{formatReminderTrigger(reminder.triggerAt)}</p>
+                <p className="truncate font-body-sm text-body-sm font-medium text-on-surface">{formatReminderTrigger(reminder.triggerAt)}</p>
                 {reminder.repeatType && (
                   <p className="mt-0.5 inline-flex items-center gap-1 font-data-mono text-data-mono text-[10px] text-on-surface-variant">
                     <Repeat2 aria-hidden="true" size={11} /> {repeatLabel(reminder.repeatType, reminder.repeatInterval)}
@@ -187,23 +185,23 @@ export function TaskReminderPanel({ taskId, taskTitle, dueDate, recurrence }: {
               </div>
               <button
                 aria-label={`Eliminar recordatorio de ${formatReminderTrigger(reminder.triggerAt)}`}
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-error-container/40 hover:text-error disabled:cursor-wait disabled:opacity-50"
+                className="flex size-7 shrink-0 items-center justify-center rounded-md text-on-surface-variant hover:bg-error-container/40 hover:text-error disabled:cursor-wait disabled:opacity-50"
                 disabled={reminderMutations.remove.isPending}
                 onClick={() => void removeReminder(reminder.id)}
                 title="Eliminar recordatorio"
                 type="button"
               >
-                <X aria-hidden="true" size={15} />
+                <X aria-hidden="true" size={14} />
               </button>
             </div>
           ))}
         </div>
       )}
       {composerOpen && canAddReminder && availableReminderLeads.length > 0 && (
-        <div className="mt-2 flex gap-2 border-t border-outline-variant/70 pt-2" id={composerId}>
+        <div className="flex items-center gap-2 border-b border-outline-variant/70 pb-2" id={composerId}>
           <label className="sr-only" htmlFor={`${composerId}-lead`}>Cuánto antes avisar</label>
           <select
-            className="field h-10 min-w-0 flex-1"
+            className="field h-9 min-w-0 flex-1 text-[13px]"
             disabled={reminderMutations.create.isPending}
             id={`${composerId}-lead`}
             onChange={(event) => setReminderLead(Number(event.target.value))}
@@ -214,18 +212,20 @@ export function TaskReminderPanel({ taskId, taskTitle, dueDate, recurrence }: {
             ))}
           </select>
           <button
-            className="min-h-10 rounded-lg bg-primary px-3 font-label-md text-label-md font-semibold text-on-primary hover:bg-primary/90 disabled:cursor-wait disabled:opacity-50"
+            aria-label="Guardar recordatorio"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary text-on-primary hover:bg-primary/90 disabled:cursor-wait disabled:opacity-50"
             disabled={reminderMutations.create.isPending}
             onClick={() => void createReminder()}
+            title="Guardar recordatorio"
             type="button"
           >
-            {reminderMutations.create.isPending ? "..." : "Guardar"}
+            <Plus aria-hidden="true" size={15} />
           </button>
         </div>
       )}
-      {!dueDate && taskReminders.length > 0 && <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">Añade una fecha límite para nuevos avisos.</p>}
+      {!dueDate && taskReminders.length > 0 && <p className="font-body-sm text-body-sm text-on-surface-variant">Añade una fecha límite para nuevos avisos.</p>}
       {reminderUnavailable && (
-        <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
           La fecha límite ya pasó o está demasiado cerca para avisar.
         </p>
       )}

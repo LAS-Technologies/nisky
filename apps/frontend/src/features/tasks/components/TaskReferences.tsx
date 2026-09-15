@@ -105,19 +105,20 @@ export function TaskReferences({
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
         <h3 className="flex items-center gap-2 font-label-caps text-label-caps uppercase text-on-surface-variant">
           <Link2 aria-hidden="true" size={14} />
           Referencias
           {references.length > 0 && <span className="font-data-mono text-data-mono text-[11px]">{references.length}</span>}
         </h3>
         <button
-          aria-label="Añadir referencia"
-          className="inline-flex size-7 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
-          onClick={formOpen && !editingId ? closeForm : openCreate}
+          aria-label={formOpen ? "Cerrar formulario de referencias" : "Añadir referencia"}
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-[12px] font-semibold text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+          onClick={formOpen ? closeForm : openCreate}
           type="button"
         >
-          {formOpen && !editingId ? <X aria-hidden="true" size={15} /> : <Plus aria-hidden="true" size={15} />}
+          {formOpen ? <X aria-hidden="true" size={14} /> : <Plus aria-hidden="true" size={14} />}
+          {formOpen ? "Cerrar" : "Añadir"}
         </button>
       </div>
 
@@ -181,23 +182,14 @@ export function TaskReferences({
             </div>
           ))}
         </div>
-      ) : (
-        <button
-          className="flex w-full items-center gap-2 rounded-md border border-dashed border-outline-variant px-3 py-2 text-left text-[13px] text-on-surface-variant hover:border-primary hover:text-primary"
-          onClick={openCreate}
-          type="button"
-        >
-          <Plus aria-hidden="true" size={14} />
-          Añade un enlace útil para esta tarea
-        </button>
-      )}
+      ) : null}
 
       {formOpen && (
-        <form className="space-y-2 rounded-md border border-outline-variant bg-surface-container-low/50 p-2.5" onSubmit={(event) => void saveReference(event)}>
+        <form className="space-y-3 border-t border-outline-variant/50 pt-3" onSubmit={(event) => void saveReference(event)}>
           <div className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
             <label className="sr-only" htmlFor={`reference-title-${taskId}`}>Título de la referencia</label>
             <input
-              className={cn("h-9 min-w-0 rounded-md border border-outline-variant bg-surface px-2.5 text-[13px] text-on-surface outline-none placeholder:text-on-surface-variant focus:border-primary")}
+              className={cn("h-10 min-w-0 rounded-lg border border-outline-variant/70 bg-surface-bright px-3 text-[13px] text-on-surface outline-none placeholder:text-on-surface-variant focus:border-primary focus:ring-2 focus:ring-primary/15")}
               id={`reference-title-${taskId}`}
               onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
               placeholder="Título (opcional)"
@@ -205,7 +197,7 @@ export function TaskReferences({
             />
             <label className="sr-only" htmlFor={`reference-url-${taskId}`}>URL de la referencia</label>
             <input
-              className="h-9 min-w-0 rounded-md border border-outline-variant bg-surface px-2.5 text-[13px] text-on-surface outline-none placeholder:text-on-surface-variant focus:border-primary"
+              className="h-10 min-w-0 rounded-lg border border-outline-variant/70 bg-surface-bright px-3 text-[13px] text-on-surface outline-none placeholder:text-on-surface-variant focus:border-primary focus:ring-2 focus:ring-primary/15"
               id={`reference-url-${taskId}`}
               onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
               placeholder="https://..."
@@ -215,10 +207,10 @@ export function TaskReferences({
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button className="rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-on-surface-variant hover:bg-surface-container-high" disabled={saving} onClick={closeForm} type="button">
+            <button className="min-h-10 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-on-surface-variant hover:bg-surface-container-low" disabled={saving} onClick={closeForm} type="button">
               Cancelar
             </button>
-            <button className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[12px] font-semibold text-on-primary disabled:opacity-60" disabled={saving} type="submit">
+            <button className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-on-primary hover:bg-primary/90 disabled:opacity-60" disabled={saving} type="submit">
               {saving && <Loader2 aria-hidden="true" className="animate-spin" size={13} />}
               {editingId ? "Guardar" : "Añadir"}
             </button>

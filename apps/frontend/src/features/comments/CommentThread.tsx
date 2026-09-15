@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useAuth } from "@/context/AuthProvider";
 import { sendPresence } from "@/lib/socket";
+import { cn } from "@/lib/utils";
 import type { Comment } from "@/types/entities";
 import { listProjectComments, listTaskComments } from "./api";
 import { useCommentMutations, useProjectComments, useTaskComments } from "./hooks/useComments";
@@ -42,7 +43,17 @@ function CommentSkeleton() {
   );
 }
 
-export function CommentThread({ kind, id, projectId }: { kind: "project" | "task"; id: string; projectId?: string | null }) {
+export function CommentThread({
+  kind,
+  id,
+  projectId,
+  compact = false,
+}: {
+  kind: "project" | "task";
+  id: string;
+  projectId?: string | null;
+  compact?: boolean;
+}) {
   const { user } = useAuth();
   const projectQuery = useProjectComments(kind === "project" ? id : null, { order: "desc", limit: PAGE_SIZE });
   const taskQuery = useTaskComments(kind === "task" ? id : null, { order: "desc", limit: PAGE_SIZE });
@@ -170,19 +181,39 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
   };
 
   const deleteTarget = comments.find((comment) => comment.id === confirmingDeleteId) ?? null;
+  const showCommentList = !compact || query.isLoading || comments.length > 0;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-6 pr-1" data-modal-scroll ref={listRef}>
+    <div className={compact ? "flex min-w-0 flex-col" : "flex h-full min-h-0 min-w-0 flex-1 flex-col"}>
+      {showCommentList && (
+        <div
+          className={cn(
+            "min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-1",
+            compact ? "max-h-[24rem] pb-3" : "min-h-0 flex-1 pb-6",
+          )}
+          data-modal-scroll
+          ref={listRef}
+        >
         {query.isLoading ? (
           <CommentSkeleton />
-        ) : comments.length === 0 ? (
-          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-outline-variant p-6 text-center">
-            <MessageSquare className="text-primary" size={22} />
-            <p className="font-label-caps text-label-caps text-on-surface-variant">SIN COMENTARIOS</p>
-            <p className="max-w-xs font-body-sm text-body-sm text-on-surface-variant">
-               Aún no hay comentarios. Sé el primero en dejar una nota.
+        ) : comments.length === 0 ? compact ? null : (
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center gap-2 text-center",
+              compact
+                ? "py-4 font-body-sm text-body-sm text-on-surface-variant"
+                : "min-h-[12rem] rounded-lg border border-dashed border-outline-variant p-6",
+            )}
+          >
+            {!compact && <MessageSquare className="text-primary" size={22} />}
+            <p className={compact ? "font-body-sm text-body-sm text-on-surface-variant" : "font-label-caps text-label-caps text-on-surface-variant"}>
+              {compact ? "Aún no hay comentarios." : "SIN COMENTARIOS"}
             </p>
+            {!compact && (
+              <p className="max-w-xs font-body-sm text-body-sm text-on-surface-variant">
+                Sé el primero en dejar una nota.
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -202,7 +233,7 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
               const edited = comment.updatedAt !== comment.createdAt;
               return (
                 <article
-                  className="group flex min-w-0 gap-3 py-1"
+                  className={cn("group flex min-w-0 py-1", compact ? "gap-2" : "gap-3")}
                   key={comment.id}
                   onClick={(event) => {
                     if (!event.shiftKey) return;
@@ -211,7 +242,7 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
                     void handleDeleteDirect(comment.id);
                   }}
                 >
-                  <Avatar avatarUrl={comment.author.avatarUrl} email={comment.author.email} name={comment.author.name} size="md" />
+                  <Avatar avatarUrl={comment.author.avatarUrl} email={comment.author.email} name={comment.author.name} size={compact ? "sm" : "md"} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate font-body-sm text-body-sm font-medium">
@@ -291,15 +322,18 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
             })}
           </>
         )}
-      </div>
+        </div>
+      )}
 
-      <div className="shrink-0 border-t border-outline-variant pt-4">
-        <div className="flex gap-3">
-          <Avatar avatarUrl={user?.avatarUrl} email={user?.email} name={user?.name} size="md" />
-          <div className="min-w-0 flex-1">
+      <div className={cn("shrink-0", compact ? "pt-1" : "border-t border-outline-variant pt-4")}>
+        <div className={cn("flex", compact ? "items-center gap-2" : "gap-3")}>
+          <Avatar avatarUrl={user?.avatarUrl} email={user?.email} name={user?.name} size={compact ? "sm" : "md"} />
+          <div className={cn("min-w-0 flex-1", compact && "flex items-center gap-2")}>
             <textarea
               aria-label="Nuevo comentario"
-              className="field min-h-[4.5rem] py-2"
+              className={compact
+                ? "min-h-9 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1.5 font-body-sm text-body-sm text-on-surface outline-none placeholder:text-on-surface-variant focus:ring-0"
+                : "field min-h-[4.5rem] py-2"}
               onChange={(event) => setNewBody(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
@@ -307,19 +341,33 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
                   void handleCreate();
                 }
               }}
-              placeholder="Escribe un comentario..."
+              placeholder={compact ? "Añade un comentario..." : "Escribe un comentario..."}
+              rows={compact ? 1 : undefined}
               value={newBody}
             />
-            <div className="mt-2 flex justify-end">
+            {compact ? (
               <button
-                className="flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 font-body-sm text-body-sm text-on-primary hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50"
+                aria-label="Publicar comentario"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={!newBody.trim() || create.isPending}
                 onClick={() => void handleCreate()}
+                title="Publicar comentario"
                 type="button"
               >
-                <Send size={14} /> Comentar
+                <Send aria-hidden="true" size={14} />
               </button>
-            </div>
+            ) : (
+              <div className="mt-2 flex justify-end">
+                <button
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 font-body-sm text-body-sm text-on-primary hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50"
+                  disabled={!newBody.trim() || create.isPending}
+                  onClick={() => void handleCreate()}
+                  type="button"
+                >
+                  <Send size={14} /> Comentar
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
