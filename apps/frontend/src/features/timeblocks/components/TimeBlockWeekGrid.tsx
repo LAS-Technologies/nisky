@@ -5,6 +5,7 @@ import { MapPin, MoreVertical } from "lucide-react";
 import type { CalendarEvent, Project, TimeBlock, TimeBlockException } from "@/types/entities";
 import { cn } from "@/lib/utils";
 import { DAY_NAMES_SHORT, DAY_ORDER, hexToRgba, minToTime, parseDateOnly, toDateKey } from "../lib/time";
+import { blockOccurrenceOn, findTimeBlockException, sameLocalDay } from "../lib/occurrences";
 
 const HOUR_PX = 56;
 const MIN_DURATION = 15;
@@ -35,53 +36,6 @@ function columnAtX(columns: DayColumn[], x: number) {
     const closestCenter = (closest.el.getBoundingClientRect().left + closest.el.getBoundingClientRect().right) / 2;
     return Math.abs(x - columnCenter) < Math.abs(x - closestCenter) ? column : closest;
   }, undefined);
-}
-
-function sameLocalDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
-function blockOccursOn(block: TimeBlock, day: Date) {
-  if (block.date && !sameLocalDay(parseDateOnly(block.date), day)) return false;
-  if (!block.date && parseDateOnly(block.recurrenceStartsAt ?? block.createdAt).getTime() > new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) return false;
-  if (!block.daysOfWeek.includes(day.getDay())) return false;
-  if (block.repeatEndsAt && parseDateOnly(block.repeatEndsAt).getTime() < new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) return false;
-  if (block.repeatEveryWeeks > 1) {
-    const weeks = Math.floor((monday(day).getTime() - monday(parseDateOnly(block.recurrenceStartsAt ?? block.createdAt)).getTime()) / (7 * 86_400_000));
-    if (weeks < 0 || weeks % block.repeatEveryWeeks !== 0) return false;
-  }
-  return true;
-}
-
-function exceptionFor(block: TimeBlock, day: Date, exceptions: TimeBlockException[]) {
-  return exceptions.find(
-    (exc) => exc.blockId === block.id && sameLocalDay(parseDateOnly(exc.date), day),
-  );
-}
-
-function blockOccurrenceOn(block: TimeBlock, day: Date, exceptions: TimeBlockException[]) {
-  const exception = exceptionFor(block, day, exceptions);
-  if (exception?.action === "skip") return null;
-  if (exception?.action === "move" && exception.targetDate) return null;
-  if (exception?.action === "move" && exception.startMin !== null && exception.endMin !== null) {
-    return { startMin: exception.startMin, endMin: exception.endMin };
-  }
-
-  const movedException = exceptions.find(
-    (item) => item.blockId === block.id
-      && item.action === "move"
-      && item.targetDate
-      && sameLocalDay(parseDateOnly(item.targetDate), day),
-  );
-  if (movedException && movedException.startMin !== null && movedException.endMin !== null) {
-    return { startMin: movedException.startMin, endMin: movedException.endMin };
-  }
-  if (!blockOccursOn(block, day)) return null;
-  return { startMin: block.startMin, endMin: block.endMin };
 }
 
 function timesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number) {
@@ -521,7 +475,7 @@ export function TimeBlockWeekGrid({
       ? `${dragDateObj.getFullYear()}-${String(dragDateObj.getMonth() + 1).padStart(2, "0")}-${String(dragDateObj.getDate()).padStart(2, "0")}`
       : "";
     const dragException = dragDateObj
-      ? exceptionFor(block, dragDateObj, exceptions)
+      ? findTimeBlockException(block, dragDateObj, exceptions)
       : undefined;
     const movedException = dragDateObj
       ? exceptions.find(
@@ -588,7 +542,7 @@ export function TimeBlockWeekGrid({
       ? `${dragDateObj.getFullYear()}-${String(dragDateObj.getMonth() + 1).padStart(2, "0")}-${String(dragDateObj.getDate()).padStart(2, "0")}`
       : "";
     const dragException = dragDateObj
-      ? exceptionFor(block, dragDateObj, exceptions)
+      ? findTimeBlockException(block, dragDateObj, exceptions)
       : undefined;
     const movedException = dragDateObj
       ? exceptions.find(

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createTimeBlockExceptionSchema } from "./timeblocks.validator";
+import { createTimeBlockExceptionSchema, timeBlockExceptionRangeSchema } from "./timeblocks.validator";
 
 describe("time block exception validator", () => {
   test("accepts a move to a different date", () => {
@@ -22,5 +22,13 @@ describe("time block exception validator", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  test("accepts an inclusive range ending on Sunday", () => {
+    expect(timeBlockExceptionRangeSchema.safeParse({ from: "2026-09-14", to: "2026-09-20" }).success).toBe(true);
+  });
+
+  test("rejects a range whose start is after its end", () => {
+    expect(timeBlockExceptionRangeSchema.safeParse({ from: "2026-09-21", to: "2026-09-20" }).success).toBe(false);
   });
 });

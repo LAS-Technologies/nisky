@@ -1,14 +1,58 @@
 import { prisma } from "../../infra/prisma/client";
 import { AppError } from "../../utils/errors/handler";
+import { calendarDateKey, calendarDateToDate, calendarDayStart, nextCalendarDayStart, todayCalendarStart } from "../../utils/calendar-date";
+import { findCalendarConflict, type CalendarConflict, type EventSeries, type TimeBlockSeries } from "../../utils/calendar/recurrence-overlap";
 import { blockOccurrenceOn, dayOfWeek, nowMinutes, TIME_BLOCKS_TZ } from "./timeblocks.util";
 import { DateTime } from "luxon";
 import { eventOccurrenceOn } from "../events/events.util";
+import type { CalendarEvent, CalendarEventException } from "../../infra/prisma/generated/prisma/client";
 import type { CreateTimeBlockDto, UpdateTimeBlockDto, UpdateTimeBlockSettingsDto } from "./timeblocks.validator";
 
 const settingsDefaults = {
   dayStartMin: 360,
   dayEndMin: 1380,
 };
+
+type TimeBlockRow = TimeBlockSeries["block"] & {
+  name?: string | null;
+  project?: { name: string } | null;
+  exceptions?: Array<{
+    id: string;
+    blockId: string;
+    action: string;
+    startMin: number | null;
+    endMin: number | null;
+    date: Date;
+    targetDate: Date | null;
+  }>;
+};
+
+type CalendarEventRow = CalendarEvent & { exceptions?: CalendarEventException[] };
+
+function timeBlockSeries(block: TimeBlockRow, label?: string): TimeBlockSeries {
+  return {
+    kind: "TIME_BLOCK",
+    id: block.id,
+    label: label ?? block.name ?? block.project?.name ?? "bloque sin nombre",
+    block,
+    exceptions: (block.exceptions ?? []) as TimeBlockSeries["exceptions"],
+  };
+}
+
+function eventSeries(event: CalendarEventRow): EventSeries {
+  return {
+    kind: "EVENT",
+    id: event.id,
+    label: event.title,
+    event,
+    exceptions: event.exceptions ?? [],
+  };
+}
+
+function conflictMessage(conflict: CalendarConflict) {
+  const prefix = conflict.kind === "TIME_BLOCK" ? "Ya tienes un bloque" : "Ya tienes un evento";
+  return `${prefix} que se cruza con «${conflict.label}»`;
+}
 
 export class TimeBlockService {
   async getSettings(userId: string) {
@@ -88,127 +132,22 @@ export class TimeBlockService {
 
   private async assertNoOverlap(
     userId: string,
-    daysOfWeek: number[],
-    startMin: number,
-    endMin: number,
-    date: Date | null,
+    candidate: TimeBlockSeries,
     excludeId?: string,
-    fromDate?: Date,
   ) {
-    if (date) {
-      const [blocks, events, exceptions] = await Promise.all([
-        prisma.timeBlock.findMany({
-          where: { userId, id: excludeId ? { not: excludeId } : undefined },
-          include: { project: { select: { name: true } } },
-        }),
-        prisma.calendarEvent.findMany({ where: { userId }, include: { exceptions: true } }),
-        prisma.timeBlockException.findMany({
-          where: { userId, OR: [{ date }, { targetDate: date }] },
-        }),
-      ]);
-      const blockClash = blocks.find((block) => {
-        const occurrence = blockOccurrenceOn(block, date, exceptions);
-        return occurrence.occurs && occurrence.startMin < endMin && occurrence.endMin > startMin;
-      });
-      if (blockClash) {
-        const label = blockClash.name ?? blockClash.project?.name ?? "bloque sin nombre";
-        throw new AppError("CONFLICT", `Ya tienes un bloque que se cruza con «${label}»`);
-      }
-      const eventClash = events.some((event) => {
-        const occurrence = eventOccurrenceOn(event, date, event.exceptions);
-        if (!occurrence.occurs || event.allDay || occurrence.startMin == null || occurrence.endMin == null) return false;
-        return occurrence.startMin < endMin && occurrence.endMin > startMin;
-      });
-      if (eventClash) {
-        throw new AppError("CONFLICT", "Ya tienes un evento que se cruza con este horario");
-      }
-      return;
-    }
-
-    const recurrenceScope = fromDate
-      ? {
-          OR: [
-            { date: { gte: fromDate } },
-            { date: null, OR: [{ repeatEndsAt: null }, { repeatEndsAt: { gte: fromDate } }] },
-          ],
-        }
-      : {};
-    const overlapping = await prisma.timeBlock.findFirst({
-      where: {
-        userId,
-        id: excludeId ? { not: excludeId } : undefined,
-        ...recurrenceScope,
-        daysOfWeek: { hasSome: daysOfWeek },
-        startMin: { lt: endMin },
-        endMin: { gt: startMin },
-      },
-      include: { project: { select: { name: true } } },
-    });
-    if (overlapping) {
-      const label = overlapping.name ?? overlapping.project?.name ?? "bloque sin nombre";
-      throw new AppError("CONFLICT", `Ya tienes un bloque que se cruza con «${label}»`);
-    }
-
-    const exceptions = await prisma.timeBlockException.findMany({
-      where: {
-        userId,
-        action: "move",
-        blockId: excludeId ? { not: excludeId } : undefined,
-      },
-      include: {
-        block: {
-          select: {
-            name: true,
-            project: { select: { name: true } },
-          },
-        },
-      },
-    });
-    const exceptionClash = exceptions.find(
-      (exc) => {
-        const occurrenceDate = exc.targetDate ?? exc.date;
-        if (fromDate) {
-          const occurrenceDay = DateTime.fromJSDate(occurrenceDate, { zone: TIME_BLOCKS_TZ }).startOf("day");
-          const firstDay = DateTime.fromJSDate(fromDate, { zone: TIME_BLOCKS_TZ }).startOf("day");
-          if (occurrenceDay < firstDay) return false;
-        }
-        return daysOfWeek.includes(dayOfWeek(occurrenceDate)) &&
-          exc.startMin !== null &&
-          exc.endMin !== null &&
-          exc.startMin < endMin &&
-          exc.endMin > startMin;
-      },
-    );
-    if (exceptionClash) {
-      const label = exceptionClash.block.name ?? exceptionClash.block.project?.name ?? "bloque sin nombre";
-      throw new AppError("CONFLICT", `Ya tienes un bloque que se cruza con «${label}»`);
-    }
-
-    const now = DateTime.now().setZone(TIME_BLOCKS_TZ).startOf("day").toJSDate();
-    const eventFrom = fromDate ?? now;
-    const futureEvents = await prisma.calendarEvent.findMany({
-      where: {
-        userId,
-        OR: [
-          { recurrenceType: null, date: { gte: eventFrom } },
-          {
-            recurrenceType: { not: null },
-            OR: [{ recurrenceEndsAt: null }, { recurrenceEndsAt: { gte: eventFrom } }],
-          },
-        ],
-      },
-      select: { date: true, allDay: true, startMin: true, endMin: true },
-    });
-    const eventClash = futureEvents.some((event) => {
-      if (!daysOfWeek.includes(dayOfWeek(event.date))) return false;
-      if (event.allDay) return false;
-      const eventStart = event.startMin ?? 0;
-      const eventEnd = event.endMin ?? 24 * 60;
-      return eventStart < endMin && eventEnd > startMin;
-    });
-    if (eventClash) {
-      throw new AppError("CONFLICT", "Ya tienes un evento que se cruza con este horario");
-    }
+    const [blocks, events] = await Promise.all([
+      prisma.timeBlock.findMany({
+        where: { userId, id: excludeId ? { not: excludeId } : undefined },
+        include: { project: { select: { name: true } }, exceptions: true },
+      }),
+      prisma.calendarEvent.findMany({ where: { userId }, include: { exceptions: true } }),
+    ]);
+    const existing = [
+      ...blocks.map((block) => timeBlockSeries(block as TimeBlockRow)),
+      ...events.map((event) => eventSeries(event as CalendarEventRow)),
+    ];
+    const conflict = findCalendarConflict(candidate, existing);
+    if (conflict) throw new AppError("CONFLICT", conflictMessage(conflict), conflict);
   }
 
   async create(userId: string, data: CreateTimeBlockDto) {
@@ -216,22 +155,40 @@ export class TimeBlockService {
       const project = await prisma.project.findFirst({ where: { id: data.projectId, userId } });
       if (!project) throw new AppError("NOT_FOUND", "Proyecto no encontrado");
     }
-    const blockDate = data.date
-      ? DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate()
-      : null;
-    await this.assertNoOverlap(userId, data.daysOfWeek, data.startMin, data.endMin, blockDate);
+    const now = new Date();
+    const blockDate = data.date ? calendarDateToDate(data.date) : null;
+    const recurring = blockDate === null;
+    const recurrenceStartsAt = recurring ? todayCalendarStart() : null;
+    const daysOfWeek = recurring ? data.daysOfWeek : [dayOfWeek(blockDate)];
+    const repeatEveryWeeks = recurring ? data.repeatEveryWeeks ?? 1 : 1;
+    const repeatEndsAt = recurring && data.repeatEndsAt ? calendarDateToDate(data.repeatEndsAt) : null;
+    if (repeatEndsAt && repeatEndsAt < calendarDayStart(recurrenceStartsAt!)) {
+      throw new AppError("BAD_REQUEST", "La fecha final debe ser igual o posterior al inicio del bloque");
+    }
+    const candidate = {
+      id: "new-time-block",
+      date: blockDate,
+      recurrenceStartsAt,
+      startMin: data.startMin,
+      endMin: data.endMin,
+      createdAt: now,
+      daysOfWeek,
+      repeatEveryWeeks,
+      repeatEndsAt,
+    } satisfies TimeBlockSeries["block"];
+    await this.assertNoOverlap(userId, timeBlockSeries(candidate, data.name ?? undefined));
     return prisma.timeBlock.create({
       data: {
         userId,
         projectId: data.projectId ?? null,
         date: blockDate,
-        recurrenceStartsAt: null,
+        recurrenceStartsAt,
         name: data.name ?? null,
-        daysOfWeek: data.daysOfWeek,
+        daysOfWeek,
         startMin: data.startMin,
         endMin: data.endMin,
-        repeatEveryWeeks: data.repeatEveryWeeks ?? 1,
-        repeatEndsAt: data.repeatEndsAt ? new Date(data.repeatEndsAt) : null,
+        repeatEveryWeeks,
+        repeatEndsAt,
         remindBeforeMin: data.remindBeforeMin ?? 0,
       },
     });
@@ -243,7 +200,7 @@ export class TimeBlockService {
       throw new AppError("BAD_REQUEST", "Solo los bloques recurrentes admiten cambios futuros");
     }
 
-    const effectiveDate = DateTime.fromISO(data.effectiveFrom!, { zone: TIME_BLOCKS_TZ }).startOf("day");
+    const effectiveDate = DateTime.fromJSDate(calendarDateToDate(data.effectiveFrom!), { zone: TIME_BLOCKS_TZ }).startOf("day");
     const seriesStart = DateTime.fromJSDate(current.recurrenceStartsAt ?? current.createdAt, { zone: TIME_BLOCKS_TZ }).startOf("day");
     if (!effectiveDate.isValid || effectiveDate < seriesStart) {
       throw new AppError("BAD_REQUEST", "La fecha de cambio no es válida para este bloque");
@@ -254,20 +211,22 @@ export class TimeBlockService {
 
     const isOneOff = data.date !== undefined && data.date !== null;
     const nextDate = isOneOff
-      ? DateTime.fromISO(data.date!, { zone: TIME_BLOCKS_TZ }).startOf("day")
+      ? DateTime.fromJSDate(calendarDateToDate(data.date!), { zone: TIME_BLOCKS_TZ }).startOf("day")
       : null;
     if (nextDate && (!nextDate.isValid || nextDate < effectiveDate)) {
       throw new AppError("BAD_REQUEST", "La nueva fecha debe ser igual o posterior a la fecha de cambio");
     }
 
-    const daysOfWeek = data.daysOfWeek ?? current.daysOfWeek;
+    const daysOfWeek = isOneOff && nextDate
+      ? [dayOfWeek(nextDate.toJSDate())]
+      : data.daysOfWeek ?? current.daysOfWeek;
     const startMin = data.startMin ?? current.startMin;
     const endMin = data.endMin ?? current.endMin;
     const repeatEveryWeeks = data.repeatEveryWeeks ?? current.repeatEveryWeeks;
     const repeatEndsAt = data.repeatEndsAt === undefined
       ? current.repeatEndsAt
       : data.repeatEndsAt
-        ? DateTime.fromISO(data.repeatEndsAt, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate()
+        ? calendarDateToDate(data.repeatEndsAt)
         : null;
     if (repeatEndsAt && repeatEndsAt < effectiveDate.toJSDate()) {
       throw new AppError("BAD_REQUEST", "La fecha final debe ser igual o posterior a la fecha de cambio");
@@ -277,15 +236,18 @@ export class TimeBlockService {
       if (!project) throw new AppError("NOT_FOUND", "Proyecto no encontrado");
     }
 
-    await this.assertNoOverlap(
-      userId,
-      daysOfWeek,
+    const candidate = {
+      id,
+      date: nextDate?.toJSDate() ?? null,
+      recurrenceStartsAt: isOneOff ? null : effectiveDate.toJSDate(),
       startMin,
       endMin,
-      nextDate?.toJSDate() ?? null,
-      id,
-      effectiveDate.toJSDate(),
-    );
+      createdAt: current.createdAt,
+      daysOfWeek,
+      repeatEveryWeeks: isOneOff ? 1 : repeatEveryWeeks,
+      repeatEndsAt: isOneOff ? null : repeatEndsAt,
+    } satisfies TimeBlockSeries["block"];
+    await this.assertNoOverlap(userId, timeBlockSeries(candidate, data.name ?? current.name ?? undefined), id);
 
     const splitDate = effectiveDate.minus({ days: 1 }).toJSDate();
     const effectiveDateValue = effectiveDate.toJSDate();
@@ -348,13 +310,41 @@ export class TimeBlockService {
       const project = await prisma.project.findFirst({ where: { id: data.projectId, userId } });
       if (!project) throw new AppError("NOT_FOUND", "Proyecto no encontrado");
     }
-    const daysOfWeek = data.daysOfWeek ?? current.daysOfWeek;
+    const blockDate = data.date !== undefined
+      ? (data.date ? calendarDateToDate(data.date) : null)
+      : current.date;
+    const isRecurring = blockDate === null;
+    const daysOfWeek = isRecurring
+      ? data.daysOfWeek ?? current.daysOfWeek
+      : [dayOfWeek(blockDate)];
     const startMin = data.startMin ?? current.startMin;
     const endMin = data.endMin ?? current.endMin;
-    const blockDate = data.date !== undefined
-      ? (data.date ? DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate() : null)
-      : current.date;
-    await this.assertNoOverlap(userId, daysOfWeek, startMin, endMin, blockDate, id);
+    const recurrenceStartsAt = isRecurring
+      ? current.date ?? current.recurrenceStartsAt ?? current.createdAt
+      : null;
+    const repeatEveryWeeks = isRecurring ? data.repeatEveryWeeks ?? current.repeatEveryWeeks : 1;
+    const repeatEndsAt = isRecurring
+      ? data.repeatEndsAt === undefined
+        ? current.repeatEndsAt
+        : data.repeatEndsAt
+          ? calendarDateToDate(data.repeatEndsAt)
+          : null
+      : null;
+    if (repeatEndsAt && repeatEndsAt < calendarDayStart(recurrenceStartsAt!)) {
+      throw new AppError("BAD_REQUEST", "La fecha final debe ser igual o posterior al inicio del bloque");
+    }
+    const candidate = {
+      id,
+      date: blockDate,
+      recurrenceStartsAt,
+      startMin,
+      endMin,
+      createdAt: current.createdAt,
+      daysOfWeek,
+      repeatEveryWeeks,
+      repeatEndsAt,
+    } satisfies TimeBlockSeries["block"];
+    await this.assertNoOverlap(userId, timeBlockSeries(candidate, data.name ?? current.name ?? undefined), id);
     const timingChanged =
       data.startMin !== undefined ||
       data.endMin !== undefined ||
@@ -366,8 +356,7 @@ export class TimeBlockService {
       data.endMin !== undefined ||
       data.daysOfWeek !== undefined
     ) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = todayCalendarStart();
       await prisma.timeBlockException.deleteMany({
         where: {
           blockId: id,
@@ -381,13 +370,14 @@ export class TimeBlockService {
       data: {
         ...(data.projectId !== undefined ? { projectId: data.projectId } : {}),
         ...(data.date !== undefined ? { date: blockDate } : {}),
+        ...(data.date !== undefined ? { recurrenceStartsAt } : {}),
         ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.daysOfWeek !== undefined ? { daysOfWeek: data.daysOfWeek } : {}),
+        ...(data.daysOfWeek !== undefined || data.date !== undefined ? { daysOfWeek } : {}),
         ...(data.startMin !== undefined ? { startMin: data.startMin } : {}),
         ...(data.endMin !== undefined ? { endMin: data.endMin } : {}),
         ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
-        ...(data.repeatEveryWeeks !== undefined ? { repeatEveryWeeks: data.repeatEveryWeeks } : {}),
-        ...(data.repeatEndsAt !== undefined ? { repeatEndsAt: data.repeatEndsAt ? new Date(data.repeatEndsAt) : null } : {}),
+        ...(data.repeatEveryWeeks !== undefined || data.date !== undefined ? { repeatEveryWeeks } : {}),
+        ...(data.repeatEndsAt !== undefined || data.date !== undefined ? { repeatEndsAt } : {}),
         ...(data.remindBeforeMin !== undefined ? { remindBeforeMin: data.remindBeforeMin } : {}),
         ...(timingChanged
           ? { lastRemindNotifiedAt: null, lastStartNotifiedAt: null, lastEndWarnNotifiedAt: null }
@@ -403,10 +393,12 @@ export class TimeBlockService {
   }
 
   async createException(userId: string, id: string, data: import("./timeblocks.validator").CreateTimeBlockExceptionDto) {
-    const block = await this.getById(userId, id);
-    const dateObj = DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate();
+    const block = await prisma.timeBlock.findFirst({ where: { id, userId }, include: { exceptions: true } });
+    if (!block) throw new AppError("NOT_FOUND", "Bloque no encontrado");
+    const exceptions = (block.exceptions ?? []) as TimeBlockSeries["exceptions"];
+    const dateObj = calendarDateToDate(data.date);
     const targetDateObj = data.targetDate
-      ? DateTime.fromISO(data.targetDate, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate()
+      ? calendarDateToDate(data.targetDate)
       : null;
     if (targetDateObj && targetDateObj.getTime() === dateObj.getTime()) {
       throw new AppError("BAD_REQUEST", "La fecha destino debe ser diferente a la fecha original");
@@ -415,31 +407,43 @@ export class TimeBlockService {
       throw new AppError("BAD_REQUEST", "Solo los bloques recurrentes admiten una fecha destino");
     }
 
-    if (data.action === "move" && data.startMin !== undefined && data.endMin !== undefined) {
-      const conflictDate = targetDateObj ?? dateObj;
-      const sameDayExceptions = await prisma.timeBlockException.findMany({ where: { userId } });
-      const blocks = await prisma.timeBlock.findMany({ where: { userId } });
-      for (const block of blocks) {
-        if (block.id === id) continue;
-        const occ = blockOccurrenceOn(block, conflictDate, sameDayExceptions);
-        if (!occ.occurs || occ.startMin >= data.endMin || occ.endMin <= data.startMin) continue;
-        throw new AppError("CONFLICT", "Ya tienes un bloque que se cruza con este horario");
-      }
-      const sameDayEvents = await prisma.calendarEvent.findMany({
-        where: { userId, date: conflictDate },
-        select: { allDay: true, startMin: true, endMin: true },
-      });
-      const eventClash = sameDayEvents.some(
-        (event) =>
-          !event.allDay &&
-          event.startMin !== null &&
-          event.endMin !== null &&
-          event.startMin < data.endMin! &&
-          event.endMin! > data.startMin!,
+    const existingException = exceptions.find((exception) => calendarDateKey(exception.date) === calendarDateKey(dateObj));
+    const sourceOccurrence = blockOccurrenceOn(block, dateObj, exceptions);
+    if (!sourceOccurrence.occurs && !existingException) {
+      throw new AppError("BAD_REQUEST", "La fecha de origen no tiene una ocurrencia de este bloque");
+    }
+
+    if (targetDateObj) {
+      const targetException = exceptions.some(
+        (exception) => exception.id !== existingException?.id
+          && exception.action === "move"
+          && exception.targetDate
+          && calendarDateKey(exception.targetDate) === calendarDateKey(targetDateObj),
       );
-      if (eventClash) {
-        throw new AppError("CONFLICT", "Ya tienes un evento que se cruza con este horario");
+      const targetOccurrence = blockOccurrenceOn(
+        block,
+        targetDateObj,
+        exceptions.filter((exception) => exception.id !== existingException?.id),
+      );
+      if (targetException || targetOccurrence.occurs) {
+        throw new AppError("CONFLICT", "La fecha destino ya tiene una ocurrencia de este bloque");
       }
+    }
+
+    if (data.action === "move") {
+      const conflictDate = targetDateObj ?? dateObj;
+      const candidate = {
+        id,
+        date: conflictDate,
+        recurrenceStartsAt: null,
+        startMin: data.startMin!,
+        endMin: data.endMin!,
+        createdAt: block.createdAt,
+        daysOfWeek: [dayOfWeek(conflictDate)],
+        repeatEveryWeeks: 1,
+        repeatEndsAt: null,
+      } satisfies TimeBlockSeries["block"];
+      await this.assertNoOverlap(userId, timeBlockSeries(candidate, block.name ?? undefined), id);
     }
 
     return prisma.timeBlockException.upsert({
@@ -472,7 +476,7 @@ export class TimeBlockService {
 
   async listAllExceptions(userId: string, from?: Date, to?: Date) {
     const dateRange = from || to
-      ? { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) }
+      ? { ...(from ? { gte: from } : {}), ...(to ? { lt: nextCalendarDayStart(to) } : {}) }
       : undefined;
     return prisma.timeBlockException.findMany({
       where: {

@@ -22,8 +22,9 @@ import { useProjectsQuery } from "@/features/projects/hooks/useProjects";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { UpdateTimeBlockPayload } from "../api/timeblocks";
 import { useBlockExceptionsQuery, useTimeBlockMutations } from "../hooks/useTimeBlocks";
-import { DAY_NAMES, DAY_NAMES_SHORT, DAY_ORDER, minToTime, parseDateOnly, timeToMin, toDateKey } from "../lib/time";
+import { DAY_NAMES, DAY_NAMES_SHORT, DAY_ORDER, calendarDateFromInstant, minToTime, parseDateOnly, timeToMin, toDateKey } from "../lib/time";
 import { cn } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const REMIND_OPTIONS = [
   { value: 0, label: "Sin aviso" },
@@ -81,8 +82,10 @@ function orderedDays(days: number[]) {
 }
 
 function scheduleDetailsFrom(block: TimeBlock, occurrenceDate?: Date): ScheduleDetailsDraft {
+  const recurrenceStart = block.recurrenceStartsAt?.slice(0, 10)
+    ?? toDateKey(calendarDateFromInstant(block.createdAt));
   return {
-    date: block.date?.slice(0, 10) ?? (occurrenceDate ? toDateKey(occurrenceDate) : toDateKey(new Date())),
+    date: block.date?.slice(0, 10) ?? recurrenceStart ?? (occurrenceDate ? toDateKey(occurrenceDate) : toDateKey(new Date())),
     daysOfWeek: orderedDays(block.daysOfWeek),
     mode: block.date ? "oneOff" : "recurring",
     repeatEveryWeeks: block.repeatEveryWeeks,
@@ -98,7 +101,7 @@ function scheduleDetailsLabel(draft: ScheduleDetailsDraft) {
   if (draft.mode === "oneOff") return draft.date ? `${blockDate(draft.date)} · Solo este día` : "Selecciona una fecha";
   const days = orderedDays(draft.daysOfWeek).map((day) => DAY_NAMES_SHORT[day]).join(" · ");
   const repeat = draft.repeatEveryWeeks === 1 ? "Cada semana" : `Cada ${draft.repeatEveryWeeks} semanas`;
-  return `${days || "Selecciona los días"} · ${repeat}${draft.repeatEndsAt ? ` · Hasta ${blockDate(draft.repeatEndsAt)}` : ""}`;
+  return `${days || "Selecciona los días"} · ${repeat} · Desde ${draft.date ? blockDate(draft.date) : "la fecha de inicio"}${draft.repeatEndsAt ? ` · Hasta ${blockDate(draft.repeatEndsAt)}` : ""}`;
 }
 
 function scheduleDraftFrom(block: TimeBlock) {
@@ -180,8 +183,8 @@ export function TimeBlockPreviewModal({
       setCurrentBlock(updated);
       toast.success(successMessage);
       return updated;
-    } catch {
-      toast.error("No pudimos actualizar el bloque.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "No pudimos actualizar el bloque."));
       return null;
     } finally {
       setPendingField(null);
@@ -306,7 +309,7 @@ export function TimeBlockPreviewModal({
       setDeleteConfirmOpen(false);
       onClose();
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "No pudimos eliminar el bloque.");
+      toast.error(getApiErrorMessage(error, "No pudimos eliminar el bloque."));
     } finally {
       setDeletePending(false);
     }
@@ -319,7 +322,7 @@ export function TimeBlockPreviewModal({
       await deleteException.mutateAsync({ blockId: currentBlock.id, exceptionId: exception.id });
       toast.success("Excepción eliminada; día restaurado");
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "No pudimos restaurar el día.");
+      toast.error(getApiErrorMessage(error, "No pudimos restaurar el día."));
     } finally {
       setPendingExceptionId(null);
     }
@@ -379,6 +382,9 @@ export function TimeBlockPreviewModal({
           <p className="mt-1.5 font-body-sm text-body-sm text-on-surface-variant">
             {currentBlock.repeatEveryWeeks === 1 ? "Cada semana" : `Cada ${currentBlock.repeatEveryWeeks} semanas`}
             {currentBlock.repeatEndsAt ? ` · Hasta ${blockDate(currentBlock.repeatEndsAt)}` : " · Sin fecha final"}
+          </p>
+          <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+            Desde {blockDate(currentBlock.recurrenceStartsAt?.slice(0, 10) ?? calendarDateFromInstant(currentBlock.createdAt))}
           </p>
         </>
       ) : (

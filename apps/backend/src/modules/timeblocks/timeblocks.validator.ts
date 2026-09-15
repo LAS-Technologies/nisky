@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { isCalendarDate } from "../../utils/calendar-date";
 
 export const idParamSchema = z.object({ id: z.uuid("El identificador no es válido") });
 
-const dateValue = z.string().refine((value) => !Number.isNaN(Date.parse(value)), "La fecha no es válida");
+const dateValue = z.string().refine(isCalendarDate, "La fecha no es válida");
 
 const timeBlockFields = {
   projectId: z.uuid("El proyecto no es válido").nullable().optional(),
@@ -79,3 +80,13 @@ export const exceptionIdParamSchema = z.object({
   id: z.uuid("El identificador no es válido"),
   exceptionId: z.uuid("La excepción no es válida"),
 });
+
+export const timeBlockExceptionRangeSchema = z
+  .object({
+    from: dateValue.optional(),
+    to: dateValue.optional(),
+  })
+  .refine((value) => !value.from || !value.to || value.from <= value.to, {
+    message: "La fecha inicial debe ser menor o igual a la final",
+    path: ["to"],
+  });

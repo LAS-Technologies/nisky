@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { TIME_BLOCKS_TZ } from "../timeblocks/timeblocks.util";
+import { calendarDateToDate } from "../../utils/calendar-date";
 import type { CalendarEvent, CalendarEventException } from "../../infra/prisma/generated/prisma/client";
 
 export const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -17,7 +18,7 @@ function dayInTz(value: Date, zone = TIME_BLOCKS_TZ) {
 }
 
 export function parseEventDate(value: string) {
-  return DateTime.fromISO(value, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate();
+  return calendarDateToDate(value);
 }
 
 export function eventOccurrenceOn(
@@ -27,8 +28,9 @@ export function eventOccurrenceOn(
 ): EventOccurrence {
   const eventDate = dayInTz(event.date);
   const target = dayInTz(targetDate);
+  const ownExceptions = exceptions.filter((exception) => exception.eventId === event.id);
 
-  const exc = exceptions.find((e) => dayInTz(e.date).hasSame(target, "day"));
+  const exc = ownExceptions.find((e) => dayInTz(e.date).hasSame(target, "day"));
   if (exc) {
     if (exc.action === "skip") return { occurs: false, isException: true, exceptionAction: "skip" };
     if (exc.action === "move") {
@@ -37,7 +39,7 @@ export function eventOccurrenceOn(
     }
   }
 
-  const movedOccurrence = exceptions.find(
+  const movedOccurrence = ownExceptions.find(
     (e) => e.action === "move" && e.targetDate && dayInTz(e.targetDate).hasSame(target, "day"),
   );
   if (movedOccurrence) {
@@ -62,7 +64,7 @@ export function eventOccurrenceOn(
   if (target < recurrenceStart) return { occurs: false, isException: false };
 
   const interval = event.recurrenceInterval ?? 1;
-  const diffDays = Math.floor(target.diff(eventDate, "days").days);
+  const diffDays = Math.floor(target.diff(recurrenceStart, "days").days);
 
   switch (event.recurrenceType) {
     case "DAILY":
@@ -77,15 +79,15 @@ export function eventOccurrenceOn(
         ? event.recurrenceDaysOfWeek
         : [eventDate.weekday % 7];
       const dowMatch = recurrenceDays.includes(targetDow);
-      const weekDiff = Math.floor(target.startOf("week").diff(eventDate.startOf("week"), "days").days / 7);
+      const weekDiff = Math.floor(target.startOf("week").diff(recurrenceStart.startOf("week"), "days").days / 7);
       return dowMatch && weekDiff % interval === 0
         ? { occurs: true, startMin: event.startMin, endMin: event.endMin, isException: false }
         : { occurs: false, isException: false };
     }
 
     case "MONTHLY": {
-      const dayOfMonth = event.recurrenceDayOfMonth ?? eventDate.day;
-      const monthDiff = (target.year - eventDate.year) * 12 + (target.month - eventDate.month);
+      const dayOfMonth = event.recurrenceDayOfMonth ?? recurrenceStart.day;
+      const monthDiff = (target.year - recurrenceStart.year) * 12 + (target.month - recurrenceStart.month);
       const targetDay = Math.min(dayOfMonth, target.daysInMonth ?? 31);
       return target.day === targetDay && monthDiff % interval === 0
         ? { occurs: true, startMin: event.startMin, endMin: event.endMin, isException: false }
@@ -93,9 +95,9 @@ export function eventOccurrenceOn(
     }
 
     case "YEARLY": {
-      const dayOfMonth = event.recurrenceDayOfMonth ?? eventDate.day;
-      const month = eventDate.month;
-      const yearDiff = target.year - eventDate.year;
+      const dayOfMonth = event.recurrenceDayOfMonth ?? recurrenceStart.day;
+      const month = recurrenceStart.month;
+      const yearDiff = target.year - recurrenceStart.year;
       return target.month === month && target.day === dayOfMonth && yearDiff % interval === 0
         ? { occurs: true, startMin: event.startMin, endMin: event.endMin, isException: false }
         : { occurs: false, isException: false };
@@ -122,21 +124,22 @@ export function expandEventOccurrences(
   exceptions: CalendarEventException[] = [],
 ): EventOccurrenceRow[] {
   const results: EventOccurrenceRow[] = [];
+  const ownExceptions = exceptions.filter((exception) => exception.eventId === event.id);
   const fromDt = dayInTz(from);
   const toDt = dayInTz(to).endOf("day");
   const eventDt = dayInTz(event.date);
 
-  const movedIntoRange = exceptions.some(
+  const movedIntoRange = ownExceptions.some(
     (exception) => exception.action === "move" && exception.targetDate
       && dayInTz(exception.targetDate) >= fromDt
       && dayInTz(exception.targetDate) <= toDt,
   );
   if (toDt < eventDt && !movedIntoRange) return [];
 
-  const maxDays = Math.floor(toDt.diff(fromDt, "days").days) + 1;
-  for (let i = 0; i <= maxDays; i++) {
+  const totalDays = Math.floor(toDt.diff(fromDt, "days").days) + 1;
+  for (let i = 0; i < totalDays; i++) {
     const day = fromDt.plus({ days: i });
-    const occ = eventOccurrenceOn(event, day.toJSDate(), exceptions);
+    const occ = eventOccurrenceOn(event, day.toJSDate(), ownExceptions);
     if (occ.occurs) {
       results.push({
         date: day.toJSDate(),

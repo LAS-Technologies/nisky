@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { isCalendarDate } from "../../utils/calendar-date";
 
 export const idParamSchema = z.object({
   id: z.string().uuid("El identificador no es válido"),
 });
 
-const dateValue = z.string().refine((value) => !Number.isNaN(Date.parse(value)), "La fecha no es válida");
+const dateValue = z.string().refine(isCalendarDate, "La fecha no es válida");
 const allDayValue = z.boolean();
 const recurrenceIntervalValue = z.number().int().min(1).max(365);
 const recurrenceDaysOfWeekValue = z.array(z.number().int().min(0).max(6));
@@ -89,7 +90,7 @@ export const queryRangeSchema = z
     from: dateValue,
     to: dateValue,
   })
-  .refine((data) => Date.parse(data.from) <= Date.parse(data.to), {
+  .refine((data) => data.from <= data.to, {
     message: "La fecha inicial debe ser menor o igual a la final",
     path: ["to"],
   });

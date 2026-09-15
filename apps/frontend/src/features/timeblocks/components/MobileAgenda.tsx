@@ -6,6 +6,7 @@ import type { CalendarEvent, Project, TimeBlock, TimeBlockException } from "@/ty
 import { cn } from "@/lib/utils";
 import { FAB } from "@/components/ui/FAB";
 import { DAY_ORDER, hexToRgba, minToTime, parseDateOnly, toDateKey } from "../lib/time";
+import { blockOccurrenceOn, sameLocalDay } from "../lib/occurrences";
 
 type MobileAgendaView = "day" | "week";
 
@@ -30,55 +31,6 @@ const DAY_LETTERS: Record<number, string> = {
   5: "V",
   6: "S",
 };
-
-function monday(date: Date) {
-  const result = new Date(date);
-  result.setHours(0, 0, 0, 0);
-  const day = result.getDay();
-  result.setDate(result.getDate() - (day === 0 ? 6 : day - 1));
-  return result;
-}
-
-function sameLocalDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate();
-}
-
-function blockOccurrenceOn(block: TimeBlock, date: Date, exceptions: TimeBlockException[]) {
-  const exception = exceptions.find(
-    (item) => item.blockId === block.id && sameLocalDay(parseDateOnly(item.date), date),
-  );
-  if (exception?.action === "skip") return null;
-  if (exception?.action === "move" && exception.targetDate) return null;
-  if (exception?.action === "move" && exception.startMin !== null && exception.endMin !== null) {
-    return { startMin: exception.startMin, endMin: exception.endMin };
-  }
-
-  const movedException = exceptions.find(
-    (item) => item.blockId === block.id
-      && item.action === "move"
-      && item.targetDate
-      && sameLocalDay(parseDateOnly(item.targetDate), date),
-  );
-  if (movedException && movedException.startMin !== null && movedException.endMin !== null) {
-    return { startMin: movedException.startMin, endMin: movedException.endMin };
-  }
-
-  if (block.date && !sameLocalDay(parseDateOnly(block.date), date)) return null;
-  if (block.recurrenceStartsAt && parseDateOnly(block.recurrenceStartsAt).getTime() > new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()) return null;
-  if (!block.daysOfWeek.includes(date.getDay())) return null;
-  if (block.repeatEndsAt && parseDateOnly(block.repeatEndsAt).getTime() < new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()) return null;
-  if (block.repeatEveryWeeks > 1) {
-    const weeks = Math.floor((monday(date).getTime() - monday(parseDateOnly(block.recurrenceStartsAt ?? block.createdAt)).getTime()) / (7 * 86_400_000));
-    if (weeks < 0 || weeks % block.repeatEveryWeeks !== 0) return null;
-  }
-
-  return {
-    startMin: block.startMin,
-    endMin: block.endMin,
-  };
-}
 
 function formatDuration(startMin: number, endMin: number) {
   const duration = Math.max(endMin - startMin, 0);

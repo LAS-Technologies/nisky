@@ -120,11 +120,16 @@ describe("block occurrences", () => {
     const endingBlock = {
       ...block,
       createdAt: DateTime.fromISO("2026-09-07", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate(),
-      daysOfWeek: [1, 4],
+      daysOfWeek: [1, 3],
       repeatEndsAt: endDate,
     };
 
-    expect(blockOccurrenceOn(endingBlock, endDate)).toEqual({ occurs: false });
+    expect(blockOccurrenceOn(endingBlock, endDate)).toEqual({
+      occurs: true,
+      startMin: 540,
+      endMin: 600,
+      exceptionId: null,
+    });
     expect(blockOccurrenceOn(endingBlock, nextOccurrence)).toEqual({ occurs: false });
   });
 });

@@ -105,4 +105,35 @@ describe("event occurrences", () => {
 
     expect(eventOccurrenceOn(biweekly, followingMonday).occurs).toBe(false);
   });
+
+  test("does not let another event's exception enter the requested range", () => {
+    const foreignException = {
+      id: "foreign-exception",
+      userId: "user-under-test",
+      eventId: "another-event",
+      date: date,
+      targetDate: DateTime.fromISO("2026-09-04", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate(),
+      action: "move",
+      startMin: 660,
+      endMin: 720,
+      createdAt: date,
+      updatedAt: date,
+    } as CalendarEventException;
+
+    expect(expandEventOccurrences(
+      { ...event, recurrenceType: null },
+      DateTime.fromISO("2026-09-04", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate(),
+      DateTime.fromISO("2026-09-04", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate(),
+      [foreignException],
+    )).toEqual([]);
+  });
+
+  test("does not expand a one-off event onto the following day", () => {
+    const oneOff = { ...event, recurrenceType: null };
+    const nextDay = DateTime.fromISO("2026-09-04", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate();
+
+    expect(expandEventOccurrences(oneOff, date, nextDay)).toEqual([
+      expect.objectContaining({ date }),
+    ]);
+  });
 });

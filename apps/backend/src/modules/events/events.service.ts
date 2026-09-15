@@ -1,9 +1,12 @@
 import { prisma } from "../../infra/prisma/client";
 import { AppError } from "../../utils/errors/handler";
+import { calendarDateKey, calendarDateToDate, calendarDayStart } from "../../utils/calendar-date";
+import { findCalendarConflict, type CalendarConflict, type EventSeries, type TimeBlockSeries } from "../../utils/calendar/recurrence-overlap";
 import { DateTime } from "luxon";
-import { blockOccurrenceOn, TIME_BLOCKS_TZ } from "../timeblocks/timeblocks.util";
+import { TIME_BLOCKS_TZ, type TimeBlockExceptionRow } from "../timeblocks/timeblocks.util";
 import { expandEventOccurrences, eventOccurrenceOn } from "./events.util";
 import type { CalendarEvent } from "../../infra/prisma/generated/prisma/client";
+import type { CalendarEventException } from "../../infra/prisma/generated/prisma/client";
 import type { CreateEventDto, CreateEventExceptionDto, UpdateEventDto } from "./events.validator";
 
 const EVENT_COLORS = [
@@ -19,6 +22,29 @@ const EVENT_COLORS = [
 
 function randomEventColor() {
   return EVENT_COLORS[Math.floor(Math.random() * EVENT_COLORS.length)];
+}
+
+type CalendarEventRow = CalendarEvent & { exceptions?: CalendarEventException[] };
+
+type TimeBlockRow = TimeBlockSeries["block"] & {
+  name?: string | null;
+  project?: { name: string } | null;
+  exceptions?: TimeBlockExceptionRow[];
+};
+
+function eventSeries(event: CalendarEventRow): EventSeries {
+  return {
+    kind: "EVENT",
+    id: event.id,
+    label: event.title,
+    event,
+    exceptions: event.exceptions ?? [],
+  };
+}
+
+function conflictMessage(conflict: CalendarConflict) {
+  const prefix = conflict.kind === "TIME_BLOCK" ? "Choca con el bloque" : "Ya tienes el evento";
+  return `${prefix} «${conflict.label}»`;
 }
 
 export type EventOccurrenceWithBase = CalendarEvent & {
@@ -90,72 +116,84 @@ export class EventsService {
     return event;
   }
 
-  private async assertNoBlockOverlap(userId: string, date: Date, startMin: number | null, endMin: number | null) {
-    if (startMin === null || endMin === null) return;
-    const dayExceptions = await prisma.timeBlockException.findMany({
-      where: { userId, OR: [{ date }, { targetDate: date }] },
-    });
-    const blocks = await prisma.timeBlock.findMany({
-      where: { userId },
-      include: { project: { select: { name: true } } },
-    });
-    for (const block of blocks) {
-      const occ = blockOccurrenceOn(block, date, dayExceptions);
-      if (!occ.occurs) continue;
-      const clash = occ.startMin < endMin && occ.endMin > startMin;
-      if (!clash) continue;
-      const label = block.name ?? block.project?.name ?? "bloque";
-      const dayName = DateTime.fromJSDate(date, { zone: TIME_BLOCKS_TZ }).toFormat("EEE d MMM", { locale: "es" });
-      const time = `${String(Math.floor(occ.startMin / 60)).padStart(2, "0")}:${String(occ.startMin % 60).padStart(2, "0")}–${String(Math.floor(occ.endMin / 60)).padStart(2, "0")}:${String(occ.endMin % 60).padStart(2, "0")}`;
-      throw new AppError(
-        "CONFLICT",
-        `Choca con el bloque "${label}" (${dayName} ${time}). Muévelo en la Agenda o sáltalo ese día.`,
-      );
-    }
-  }
-
-  private async assertNoEventOverlap(userId: string, date: Date, startMin: number | null, endMin: number | null, excludeId?: string) {
-    if (startMin === null || endMin === null) return;
-    const sameDayEvents = await prisma.calendarEvent.findMany({
-      where: { userId, id: excludeId ? { not: excludeId } : undefined },
-      include: { exceptions: true },
-    });
-    const dayExceptions = await prisma.calendarEventException.findMany({ where: { userId, date } });
-    for (const other of sameDayEvents) {
-      const occ = eventOccurrenceOn(other, date, [...other.exceptions, ...dayExceptions]);
-      if (!occ.occurs) continue;
-      if (other.allDay && occ.exceptionAction !== "move") continue;
-      const otherStart = occ.startMin ?? other.startMin;
-      const otherEnd = occ.endMin ?? other.endMin;
-      if (otherStart === null || otherStart === undefined || otherEnd === null || otherEnd === undefined) continue;
-      if (otherStart < endMin && otherEnd > startMin) {
-        throw new AppError("CONFLICT", `Ya tienes el evento «${other.title}» que se cruza con este horario`);
-      }
-    }
+  private async assertNoOverlap(userId: string, candidate: EventSeries, excludeId?: string) {
+    const [blocks, events] = await Promise.all([
+      prisma.timeBlock.findMany({
+        where: { userId },
+        include: { project: { select: { name: true } }, exceptions: true },
+      }),
+      prisma.calendarEvent.findMany({
+        where: { userId, id: excludeId ? { not: excludeId } : undefined },
+        include: { exceptions: true },
+      }),
+    ]);
+    const existing = [
+      ...blocks.map((block) => ({
+        kind: "TIME_BLOCK" as const,
+        id: block.id,
+        label: (block as TimeBlockRow).name ?? (block as TimeBlockRow).project?.name ?? "bloque",
+        block: block as TimeBlockRow,
+        exceptions: ((block as TimeBlockRow).exceptions ?? []) as TimeBlockSeries["exceptions"],
+      })),
+      ...events.map((event) => eventSeries(event as CalendarEventRow)),
+    ];
+    const conflict = findCalendarConflict(candidate, existing);
+    if (conflict) throw new AppError("CONFLICT", conflictMessage(conflict), conflict);
   }
 
   async create(userId: string, data: CreateEventDto) {
-    const localDate = DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate();
+    const localDate = calendarDateToDate(data.date);
     const startMin = data.allDay ? null : data.startMin ?? null;
     const endMin = data.allDay ? null : data.endMin ?? null;
-    await this.assertNoBlockOverlap(userId, localDate, startMin, endMin);
-    await this.assertNoEventOverlap(userId, localDate, startMin, endMin);
+    const recurrenceType = data.recurrenceType ?? null;
+    const recurrenceStartsAt = recurrenceType ? localDate : null;
+    const recurrenceEndsAt = recurrenceType && data.recurrenceEndsAt
+      ? calendarDateToDate(data.recurrenceEndsAt)
+      : null;
+    if (recurrenceEndsAt && recurrenceEndsAt < calendarDayStart(localDate)) {
+      throw new AppError("BAD_REQUEST", "La fecha final debe ser igual o posterior al inicio del evento");
+    }
+    const now = new Date();
+    const candidate = {
+      id: "new-calendar-event",
+      userId,
+      title: data.title,
+      date: localDate,
+      recurrenceStartsAt,
+      allDay: data.allDay,
+      startMin,
+      endMin,
+      location: data.location ?? null,
+      color: data.color ?? null,
+      recurrenceType,
+      recurrenceInterval: data.recurrenceInterval ?? 1,
+      recurrenceDaysOfWeek: data.recurrenceDaysOfWeek ?? [],
+      recurrenceDayOfMonth: data.recurrenceDayOfMonth ?? null,
+      recurrenceEndsAt,
+      remindBeforeMin: data.remindBeforeMin ?? 0,
+      lastRemindNotifiedAt: null,
+      lastStartNotifiedAt: null,
+      lastEndWarnNotifiedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    } as CalendarEvent;
+    await this.assertNoOverlap(userId, eventSeries(candidate));
     return prisma.calendarEvent.create({
       data: {
         userId,
         title: data.title,
         date: localDate,
-        recurrenceStartsAt: null,
+        recurrenceStartsAt,
         allDay: data.allDay,
         startMin,
         endMin,
         location: data.location,
         color: data.color ?? randomEventColor(),
-        recurrenceType: data.recurrenceType ?? null,
+        recurrenceType,
         recurrenceInterval: data.recurrenceInterval ?? 1,
         recurrenceDaysOfWeek: data.recurrenceDaysOfWeek ?? [],
         recurrenceDayOfMonth: data.recurrenceDayOfMonth ?? null,
-        recurrenceEndsAt: data.recurrenceEndsAt ? DateTime.fromISO(data.recurrenceEndsAt, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate() : null,
+        recurrenceEndsAt,
         remindBeforeMin: data.remindBeforeMin ?? 0,
       },
     });
@@ -167,14 +205,14 @@ export class EventsService {
       throw new AppError("BAD_REQUEST", "Solo los eventos recurrentes admiten cambios futuros");
     }
 
-    const effectiveDate = DateTime.fromISO(data.effectiveFrom!, { zone: TIME_BLOCKS_TZ }).startOf("day");
-    const currentStart = DateTime.fromJSDate(current.date, { zone: TIME_BLOCKS_TZ }).startOf("day");
+    const effectiveDate = DateTime.fromJSDate(calendarDateToDate(data.effectiveFrom!), { zone: TIME_BLOCKS_TZ }).startOf("day");
+    const currentStart = DateTime.fromJSDate(current.recurrenceStartsAt ?? current.date, { zone: TIME_BLOCKS_TZ }).startOf("day");
     if (!effectiveDate.isValid || effectiveDate < currentStart) {
       throw new AppError("BAD_REQUEST", "La fecha de cambio no es válida para este evento");
     }
 
     const nextDate = data.date !== undefined
-      ? DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day")
+      ? DateTime.fromJSDate(calendarDateToDate(data.date), { zone: TIME_BLOCKS_TZ }).startOf("day")
       : effectiveDate;
     if (!nextDate.isValid || nextDate < currentStart) {
       throw new AppError("BAD_REQUEST", "La nueva fecha no es válida para este evento");
@@ -196,15 +234,31 @@ export class EventsService {
     const recurrenceEndsAt = data.recurrenceEndsAt === undefined
       ? current.recurrenceEndsAt
       : data.recurrenceEndsAt
-        ? DateTime.fromISO(data.recurrenceEndsAt, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate()
+        ? calendarDateToDate(data.recurrenceEndsAt)
         : null;
     const nextRecurrenceEndsAt = recurrenceType ? recurrenceEndsAt : null;
     if (nextRecurrenceEndsAt && nextRecurrenceEndsAt < splitDate.toJSDate()) {
       throw new AppError("BAD_REQUEST", "La fecha final debe ser igual o posterior a la fecha de cambio");
     }
 
-    await this.assertNoBlockOverlap(userId, nextDate.toJSDate(), startMin, endMin);
-    await this.assertNoEventOverlap(userId, nextDate.toJSDate(), startMin, endMin, id);
+    const now = new Date();
+    const candidate = {
+      ...current,
+      id,
+      date: nextDate.toJSDate(),
+      recurrenceStartsAt: recurrenceType ? effectiveDate.toJSDate() : null,
+      allDay,
+      startMin,
+      endMin,
+      recurrenceType,
+      recurrenceInterval,
+      recurrenceDaysOfWeek,
+      recurrenceDayOfMonth,
+      recurrenceEndsAt: nextRecurrenceEndsAt,
+      createdAt: current.createdAt ?? now,
+      updatedAt: now,
+    } as CalendarEvent;
+    await this.assertNoOverlap(userId, eventSeries(candidate), id);
 
     const splitDateValue = splitDate.toJSDate();
     const effectiveDateValue = effectiveDate.toJSDate();
@@ -282,12 +336,40 @@ export class EventsService {
   async update(userId: string, id: string, data: UpdateEventDto) {
     if (data.effectiveFrom !== undefined) return this.updateFromDate(userId, id, data);
     const current = await this.getById(userId, id);
-    const localDate = data.date ? DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate() : current.date;
+    const localDate = data.date ? calendarDateToDate(data.date) : current.date;
     const allDay = data.allDay ?? current.allDay;
     const startMin = allDay ? null : (data.startMin ?? current.startMin);
     const endMin = allDay ? null : (data.endMin ?? current.endMin);
-    await this.assertNoBlockOverlap(userId, localDate, startMin, endMin);
-    await this.assertNoEventOverlap(userId, localDate, startMin, endMin, id);
+    const recurrenceType = data.recurrenceType !== undefined ? data.recurrenceType : current.recurrenceType;
+    const recurrenceStartsAt = recurrenceType
+      ? data.date !== undefined ? localDate : current.recurrenceStartsAt ?? current.date
+      : null;
+    const recurrenceEndsAt = recurrenceType
+      ? data.recurrenceEndsAt === undefined
+        ? current.recurrenceEndsAt
+        : data.recurrenceEndsAt
+          ? calendarDateToDate(data.recurrenceEndsAt)
+          : null
+      : null;
+    if (recurrenceEndsAt && recurrenceEndsAt < calendarDayStart(recurrenceStartsAt!)) {
+      throw new AppError("BAD_REQUEST", "La fecha final debe ser igual o posterior al inicio del evento");
+    }
+    const candidate = {
+      ...current,
+      date: localDate,
+      recurrenceStartsAt,
+      allDay,
+      startMin,
+      endMin,
+      recurrenceType,
+      recurrenceInterval: data.recurrenceInterval ?? current.recurrenceInterval,
+      recurrenceDaysOfWeek: data.recurrenceDaysOfWeek ?? current.recurrenceDaysOfWeek,
+      recurrenceDayOfMonth: data.recurrenceDayOfMonth !== undefined
+        ? data.recurrenceDayOfMonth
+        : current.recurrenceDayOfMonth,
+      recurrenceEndsAt,
+    } as CalendarEvent;
+    await this.assertNoOverlap(userId, eventSeries(candidate), id);
 
     const timingChanged =
       data.date !== undefined ||
@@ -305,16 +387,17 @@ export class EventsService {
       data: {
         title: data.title,
         date: localDate,
+        recurrenceStartsAt,
         allDay,
         startMin,
         endMin,
         location: data.location,
         ...(data.color !== undefined ? { color: data.color } : {}),
-        ...(data.recurrenceType !== undefined ? { recurrenceType: data.recurrenceType } : {}),
+        ...(data.recurrenceType !== undefined ? { recurrenceType } : {}),
         ...(data.recurrenceInterval !== undefined ? { recurrenceInterval: data.recurrenceInterval } : {}),
         ...(data.recurrenceDaysOfWeek !== undefined ? { recurrenceDaysOfWeek: data.recurrenceDaysOfWeek } : {}),
         ...(data.recurrenceDayOfMonth !== undefined ? { recurrenceDayOfMonth: data.recurrenceDayOfMonth } : {}),
-        ...(data.recurrenceEndsAt !== undefined ? { recurrenceEndsAt: data.recurrenceEndsAt ? DateTime.fromISO(data.recurrenceEndsAt, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate() : null } : {}),
+        ...(data.recurrenceEndsAt !== undefined ? { recurrenceEndsAt } : {}),
         ...(data.remindBeforeMin !== undefined ? { remindBeforeMin: data.remindBeforeMin } : {}),
         ...(timingChanged
           ? { lastRemindNotifiedAt: null, lastStartNotifiedAt: null, lastEndWarnNotifiedAt: null }
@@ -330,10 +413,13 @@ export class EventsService {
   }
 
   async createException(userId: string, id: string, data: CreateEventExceptionDto) {
-    const event = await this.getById(userId, id);
-    const dateObj = DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate();
+    const event = await prisma.calendarEvent.findFirst({ where: { id, userId }, include: { exceptions: true } });
+    if (!event) throw new AppError("NOT_FOUND", "Evento no encontrado");
+    const eventRow = event as CalendarEventRow;
+    const exceptions = eventRow.exceptions ?? [];
+    const dateObj = calendarDateToDate(data.date);
     const targetDateObj = data.targetDate
-      ? DateTime.fromISO(data.targetDate, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate()
+      ? calendarDateToDate(data.targetDate)
       : null;
     if (targetDateObj && targetDateObj.getTime() === dateObj.getTime()) {
       throw new AppError("BAD_REQUEST", "La fecha destino debe ser diferente a la fecha original");
@@ -341,14 +427,54 @@ export class EventsService {
     if (targetDateObj && !event.recurrenceType) {
       throw new AppError("BAD_REQUEST", "Solo los eventos recurrentes admiten una fecha destino");
     }
-    if (data.action === "move" && !event.allDay && (data.startMin === undefined || data.endMin === undefined)) {
-      throw new AppError("BAD_REQUEST", "Un evento con horario requiere startMin y endMin");
+    const existingException = exceptions.find((exception) => calendarDateKey(exception.date) === calendarDateKey(dateObj));
+    const sourceOccurrence = eventOccurrenceOn(event, dateObj, exceptions);
+    if (!sourceOccurrence.occurs && !existingException) {
+      throw new AppError("BAD_REQUEST", "La fecha de origen no tiene una ocurrencia de este evento");
     }
 
-    if (data.action === "move" && data.startMin !== undefined && data.endMin !== undefined) {
+    if (targetDateObj) {
+      const targetException = exceptions.some(
+        (exception) => exception.id !== existingException?.id
+          && exception.action === "move"
+          && exception.targetDate
+          && calendarDateKey(exception.targetDate) === calendarDateKey(targetDateObj),
+      );
+      const targetOccurrence = eventOccurrenceOn(event, targetDateObj, exceptions.filter((exception) => exception.id !== existingException?.id));
+      if (targetException || targetOccurrence.occurs) {
+        throw new AppError("CONFLICT", "La fecha destino ya tiene una ocurrencia de este evento");
+      }
+    }
+
+    const moveStartMin = data.action === "move" && !event.allDay
+      ? data.startMin ?? event.startMin
+      : null;
+    const moveEndMin = data.action === "move" && !event.allDay
+      ? data.endMin ?? event.endMin
+      : null;
+    if (data.action === "move" && !event.allDay && (moveStartMin === null || moveEndMin === null)) {
+      throw new AppError("BAD_REQUEST", "Un evento con horario requiere startMin y endMin");
+    }
+    if (moveStartMin !== null && moveEndMin !== null && moveEndMin <= moveStartMin) {
+      throw new AppError("BAD_REQUEST", "El fin debe ser mayor al inicio");
+    }
+
+    if (data.action === "move") {
       const conflictDate = targetDateObj ?? dateObj;
-      await this.assertNoBlockOverlap(userId, conflictDate, data.startMin, data.endMin);
-      await this.assertNoEventOverlap(userId, conflictDate, data.startMin, data.endMin, id);
+      const candidate = {
+        ...event,
+        id,
+        date: conflictDate,
+        recurrenceStartsAt: null,
+        recurrenceType: null,
+        recurrenceInterval: 1,
+        recurrenceDaysOfWeek: [],
+        recurrenceDayOfMonth: null,
+        recurrenceEndsAt: null,
+        startMin: moveStartMin,
+        endMin: moveEndMin,
+      } as CalendarEvent;
+      await this.assertNoOverlap(userId, eventSeries(candidate), id);
     }
 
     return prisma.calendarEventException.upsert({
@@ -359,14 +485,14 @@ export class EventsService {
         date: dateObj,
         targetDate: targetDateObj,
         action: data.action,
-        startMin: data.action === "move" ? data.startMin ?? null : null,
-        endMin: data.action === "move" ? data.endMin ?? null : null,
+        startMin: data.action === "move" ? moveStartMin : null,
+        endMin: data.action === "move" ? moveEndMin : null,
       },
       update: {
         targetDate: targetDateObj,
         action: data.action,
-        startMin: data.action === "move" ? data.startMin ?? null : null,
-        endMin: data.action === "move" ? data.endMin ?? null : null,
+        startMin: data.action === "move" ? moveStartMin : null,
+        endMin: data.action === "move" ? moveEndMin : null,
       },
     });
   }

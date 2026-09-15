@@ -11,6 +11,7 @@
     "db:seed": "bunx prisma db seed",
     "db:backfill-projects": "bun scripts/backfill-projects.ts",
     "db:backfill-personal": "bun scripts/backfill-personal-projects.ts",
+    "db:report-recurrence": "bun scripts/report-recurrence-data.ts",
     "db:studio": "bunx prisma studio",
     "test": "bun test",
     "typecheck": "tsc --noEmit",

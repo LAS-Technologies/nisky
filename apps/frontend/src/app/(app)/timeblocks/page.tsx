@@ -24,6 +24,7 @@ import { minToTime, parseDateOnly, timeToMin } from "@/features/timeblocks/lib/t
 import { findAvailableStartMin } from "@/features/timeblocks/lib/availability";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { localDateKey } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/api-error";
 import type { CalendarEvent, TimeBlock } from "@/types/entities";
 import {
   Dialog,
@@ -319,9 +320,9 @@ function TimeBlocksContent() {
     const startMin = findAvailableStartMin({
       blocks,
       dateKey,
-      dayOfWeek: date.getDay(),
       events,
       preferredStartMin,
+      exceptions,
     }) ?? preferredStartMin;
     return {
       dayOfWeek: date.getDay(),
@@ -359,7 +360,7 @@ function TimeBlocksContent() {
       setPreviewingEvent(created);
       toast.success("Evento creado");
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "Ups, no pudimos crear el evento. Inténtalo de nuevo.");
+      toast.error(getApiErrorMessage(error, "Ups, no pudimos crear el evento. Inténtalo de nuevo."));
     } finally {
       creatingEntryRef.current = false;
     }
@@ -385,7 +386,7 @@ function TimeBlocksContent() {
       setPreviewBlockDate(parseDateOnly(created.date ?? slot.date));
       toast.success("Bloque creado");
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "Ups, no pudimos crear el bloque. Inténtalo de nuevo.");
+      toast.error(getApiErrorMessage(error, "Ups, no pudimos crear el bloque. Inténtalo de nuevo."));
     } finally {
       creatingEntryRef.current = false;
     }
@@ -440,7 +441,7 @@ function TimeBlocksContent() {
         });
         toast.success("Excepción actualizada para este día");
       } catch (err) {
-        toast.error((err as { message?: string })?.message ?? "Ups, no pudimos actualizar la excepción.");
+        toast.error(getApiErrorMessage(err, "Ups, no pudimos actualizar la excepción."));
       }
       return;
     }
@@ -458,8 +459,8 @@ function TimeBlocksContent() {
         payload: { startMin, endMin, daysOfWeek: days },
       });
       toast.success("Bloque actualizado en la Agenda");
-    } catch {
-      toast.error("Ups, no pudimos ajustar el bloque. Inténtalo de nuevo.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Ups, no pudimos ajustar el bloque. Inténtalo de nuevo."));
     }
   };
 
@@ -478,7 +479,7 @@ function TimeBlocksContent() {
       toast.success("Excepción guardada para este día");
       setResolveDraft(null);
     } catch (err) {
-      toast.error((err as { message?: string })?.message ?? "Ups, no pudimos crear la excepción.");
+      toast.error(getApiErrorMessage(err, "Ups, no pudimos crear la excepción."));
     }
   };
 
@@ -491,8 +492,8 @@ function TimeBlocksContent() {
         payload: { effectiveFrom: sourceDate, startMin, endMin, daysOfWeek: days },
       });
       toast.success("Horario actualizado desde este día");
-    } catch {
-      toast.error("Ups, no pudimos ajustar el bloque. Inténtalo de nuevo.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Ups, no pudimos ajustar el bloque. Inténtalo de nuevo."));
     }
     setResolveDraft(null);
   };
@@ -526,7 +527,7 @@ function TimeBlocksContent() {
       });
       toast.success("Bloque saltado ese día");
     } catch (err) {
-      toast.error((err as { message?: string })?.message ?? "Ups, no pudimos saltar el bloque.");
+      toast.error(getApiErrorMessage(err, "Ups, no pudimos saltar el bloque."));
       throw err;
     }
   };
@@ -538,7 +539,7 @@ function TimeBlocksContent() {
         .mutateAsync({ eventId: event.id, payload: { date: dateStr, action: "skip" } })
         .then(() => toast.success("Evento saltado ese día"))
         .catch((err) =>
-          toast.error((err as { message?: string })?.message ?? "Ups, no pudimos saltar el evento."),
+          toast.error(getApiErrorMessage(err, "Ups, no pudimos saltar el evento.")),
         );
       return;
     }
@@ -568,7 +569,7 @@ function TimeBlocksContent() {
         });
         toast.success("Evento movido");
       } catch (err) {
-        toast.error((err as { message?: string })?.message ?? "Ups, no pudimos mover el evento.");
+        toast.error(getApiErrorMessage(err, "Ups, no pudimos mover el evento."));
       }
       return;
     }
@@ -591,7 +592,7 @@ function TimeBlocksContent() {
       });
       toast.success("Evento movido");
     } catch (err) {
-      toast.error((err as { message?: string })?.message ?? "Ups, no pudimos mover el evento.");
+      toast.error(getApiErrorMessage(err, "Ups, no pudimos mover el evento."));
     }
   };
 
@@ -631,7 +632,7 @@ function TimeBlocksContent() {
       }
       setEventMoveDraft(null);
     } catch (err) {
-      toast.error((err as { message?: string })?.message ?? "Ups, no pudimos mover el evento.");
+      toast.error(getApiErrorMessage(err, "Ups, no pudimos mover el evento."));
     }
   };
 

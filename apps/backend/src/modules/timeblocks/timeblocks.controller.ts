@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../../utils/errors/handler";
+import { calendarDateToDate } from "../../utils/calendar-date";
 import { timeBlockService } from "./timeblocks.service";
 import type { CreateTimeBlockDto, UpdateTimeBlockDto, UpdateTimeBlockSettingsDto } from "./timeblocks.validator";
 
@@ -54,8 +55,8 @@ export class TimeBlockController {
 
   listAllExceptions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const from = typeof req.query.from === "string" ? new Date(req.query.from) : undefined;
-      const to = typeof req.query.to === "string" ? new Date(req.query.to) : undefined;
+      const from = typeof req.query.from === "string" ? calendarDateToDate(req.query.from) : undefined;
+      const to = typeof req.query.to === "string" ? calendarDateToDate(req.query.to) : undefined;
       res.success(await timeBlockService.listAllExceptions(userId(req), from, to));
     } catch (error) { next(error); }
   };

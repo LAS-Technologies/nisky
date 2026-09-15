@@ -6,11 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useEventMutations, useEventsQuery } from "@/features/events/hooks/useEvents";
 import { EventPreviewModal } from "@/features/events/components/EventPreviewModal";
-import { useTimeBlocksQuery } from "@/features/timeblocks/hooks/useTimeBlocks";
-import type { CalendarEvent, TimeBlock } from "@/types/entities";
+import { useTimeBlocksQuery, useWeekExceptionsQuery } from "@/features/timeblocks/hooks/useTimeBlocks";
+import type { CalendarEvent, TimeBlock, TimeBlockException } from "@/types/entities";
 import { PROJECT_COLORS } from "@/components/ui/ColorPicker";
 import { findAvailableStartMin } from "@/features/timeblocks/lib/availability";
 import { hexToRgba, parseDateOnly } from "@/features/timeblocks/lib/time";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 function toLocalISODate(date: Date) {
   const y = date.getFullYear();
@@ -35,7 +36,7 @@ function formatMin(value: number) {
   return `${hours}:${minutes}`;
 }
 
-function defaultEventSchedule(events: CalendarEvent[], blocks: TimeBlock[]) {
+function defaultEventSchedule(events: CalendarEvent[], blocks: TimeBlock[], exceptions: TimeBlockException[]) {
   const now = new Date();
   const currentMin = now.getHours() * 60 + now.getMinutes();
   const preferredStartMin = Math.min(Math.max(Math.ceil(currentMin / 15) * 15, 6 * 60), 22 * 60);
@@ -43,9 +44,9 @@ function defaultEventSchedule(events: CalendarEvent[], blocks: TimeBlock[]) {
   const startMin = findAvailableStartMin({
     blocks,
     dateKey: date,
-    dayOfWeek: now.getDay(),
     events,
     preferredStartMin,
+    exceptions,
   });
   return {
     allDay: startMin === null,
@@ -65,6 +66,8 @@ export default function EventsPage() {
   const to = toLocalISODate(toDate);
   const { data: events = [], isLoading } = useEventsQuery(from, to);
   const { data: blocks = [] } = useTimeBlocksQuery();
+  const todayKey = toLocalISODate(new Date());
+  const { data: exceptions = [] } = useWeekExceptionsQuery(todayKey, todayKey);
   const { createEvent } = useEventMutations();
   const [previewingEvent, setPreviewingEvent] = useState<CalendarEvent | null>(null);
   const eventIdParam = searchParams.get("eventId");
@@ -97,7 +100,7 @@ export default function EventsPage() {
   const openCreate = async () => {
     if (creatingEventRef.current) return;
     creatingEventRef.current = true;
-    const schedule = defaultEventSchedule(events, blocks);
+    const schedule = defaultEventSchedule(events, blocks, exceptions);
     try {
       const created = await createEvent.mutateAsync({
         title: "Nuevo evento",
@@ -116,7 +119,7 @@ export default function EventsPage() {
       setPreviewingEvent(created);
       toast.success("Evento creado");
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "Ups, no pudimos crear el evento. Inténtalo de nuevo.");
+      toast.error(getApiErrorMessage(error, "Ups, no pudimos crear el evento. Inténtalo de nuevo."));
     } finally {
       creatingEventRef.current = false;
     }

@@ -1,38 +1,31 @@
-import type { CalendarEvent, TimeBlock } from "@/types/entities";
+import type { CalendarEvent, TimeBlock, TimeBlockException } from "@/types/entities";
+import { blockOccurrenceOn } from "./occurrences";
+import { parseDateOnly, toDateKey } from "./time";
 
 type SlotEvent = Pick<CalendarEvent, "date" | "allDay" | "startMin" | "endMin">;
-type SlotBlock = Pick<TimeBlock, "date" | "daysOfWeek" | "startMin" | "endMin" | "repeatEndsAt">;
-
-function dateOnly(value: string | null) {
-  return value?.slice(0, 10) ?? "";
-}
+type SlotBlock = TimeBlock;
 
 function overlaps(startMin: number, endMin: number, otherStartMin: number, otherEndMin: number) {
   return otherStartMin < endMin && otherEndMin > startMin;
 }
 
-function blockOccursOn(block: SlotBlock, dateKey: string, dayOfWeek: number) {
-  if (block.date) return dateOnly(block.date) === dateKey && block.daysOfWeek.includes(dayOfWeek);
-  if (!block.daysOfWeek.includes(dayOfWeek)) return false;
-  return !block.repeatEndsAt || dateOnly(block.repeatEndsAt) >= dateKey;
-}
-
 export function findAvailableStartMin({
   blocks,
   dateKey,
-  dayOfWeek,
   durationMin = 60,
   events,
   preferredStartMin,
+  exceptions = [],
 }: {
   blocks: SlotBlock[];
   dateKey: string;
-  dayOfWeek: number;
   durationMin?: number;
   events: SlotEvent[];
   preferredStartMin: number;
+  exceptions?: TimeBlockException[];
 }) {
   const maxStartMin = 24 * 60 - durationMin;
+  const date = parseDateOnly(dateKey);
 
   for (let offsetMin = 0; offsetMin < 24 * 60; offsetMin += 15) {
     const startMin = (preferredStartMin + offsetMin) % (24 * 60);
@@ -40,14 +33,15 @@ export function findAvailableStartMin({
     if (startMin > maxStartMin) continue;
 
     const eventConflict = events.some((event) => {
-      if (dateOnly(event.date) !== dateKey || event.allDay || event.startMin === null || event.endMin === null) return false;
+      if (toDateKey(parseDateOnly(event.date)) !== dateKey || event.allDay || event.startMin === null || event.endMin === null) return false;
       return overlaps(startMin, endMin, event.startMin, event.endMin);
     });
     if (eventConflict) continue;
 
-    const blockConflict = blocks.some((block) =>
-      blockOccursOn(block, dateKey, dayOfWeek) && overlaps(startMin, endMin, block.startMin, block.endMin),
-    );
+    const blockConflict = blocks.some((block) => {
+      const occurrence = blockOccurrenceOn(block, date, exceptions);
+      return occurrence !== null && overlaps(startMin, endMin, occurrence.startMin, occurrence.endMin);
+    });
     if (!blockConflict) return startMin;
   }
 

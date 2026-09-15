@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { minToTime, parseDateOnly, timeToMin, toDateKey } from "@/features/timeblocks/lib/time";
 import { cn } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const REMIND_OPTIONS = [
   { value: 0, label: "Sin aviso" },
@@ -284,8 +285,8 @@ export function EventPreviewModal({
       setCurrentEvent(updated);
       toast.success(successMessage);
       return updated;
-    } catch {
-      toast.error("No pudimos actualizar el evento.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "No pudimos actualizar el evento."));
       return null;
     } finally {
       setPendingField(null);
@@ -405,7 +406,7 @@ export function EventPreviewModal({
       toast.success("Evento eliminado");
       onClose();
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "No pudimos eliminar el evento.");
+      toast.error(getApiErrorMessage(error, "No pudimos eliminar el evento."));
     }
   };
 
@@ -421,7 +422,7 @@ export function EventPreviewModal({
       setSkipConfirmOpen(false);
       onClose();
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "No pudimos saltar el evento.");
+      toast.error(getApiErrorMessage(error, "No pudimos saltar el evento."));
     } finally {
       setSkipPending(false);
     }
@@ -434,7 +435,7 @@ export function EventPreviewModal({
       await deleteException.mutateAsync({ eventId: currentEvent.id, exceptionId });
       toast.success("Excepción eliminada; día restaurado");
     } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "No pudimos restaurar el día.");
+      toast.error(getApiErrorMessage(error, "No pudimos restaurar el día."));
     } finally {
       setPendingExceptionId(null);
     }

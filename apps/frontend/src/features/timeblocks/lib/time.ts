@@ -20,6 +20,18 @@ export function parseDateOnly(value: string) {
   return new Date(year, month - 1, day);
 }
 
+export function calendarDateFromInstant(value: string, timeZone = "America/Santo_Domingo") {
+  const instant = new Date(value);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone,
+    year: "numeric",
+  }).formatToParts(instant);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return new Date(Number(values.year), Number(values.month) - 1, Number(values.day));
+}
+
 export function toDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
