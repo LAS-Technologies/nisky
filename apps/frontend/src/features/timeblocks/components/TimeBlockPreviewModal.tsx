@@ -463,6 +463,9 @@ export function TimeBlockPreviewModal({
               ))}
             </ToggleGroup>
             <p className="font-body-sm text-body-sm text-on-surface-variant">Selecciona uno o más días.</p>
+            <p className="rounded-lg bg-primary-fixed/60 px-3 py-2 font-body-sm text-body-sm text-on-surface-variant">
+              Los cambios se aplicarán {occurrenceKey ?? scheduleDetailsDraft.date ? `desde el ${blockDate(occurrenceKey ?? scheduleDetailsDraft.date)}` : "desde la fecha original del bloque"}. No se rellenarán días anteriores.
+            </p>
           </fieldset>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
