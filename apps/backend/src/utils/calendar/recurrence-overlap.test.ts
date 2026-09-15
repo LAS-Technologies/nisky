@@ -88,6 +88,15 @@ describe("recurrence overlap", () => {
     });
   });
 
+  test("does not scan years for incompatible weekly days", () => {
+    const candidate = blockSeries({ id: "candidate", daysOfWeek: [2, 3] });
+    const existing = blockSeries({ id: "existing", daysOfWeek: [1] });
+    const startedAt = performance.now();
+
+    expect(findCalendarConflict(candidate, [existing])).toBeNull();
+    expect(performance.now() - startedAt).toBeLessThan(1_000);
+  });
+
   test("uses configured weekly event days instead of the event base day", () => {
     const candidate = blockSeries({ id: "candidate", daysOfWeek: [3] });
     const existing = eventSeries({ recurrenceDaysOfWeek: [3] });
@@ -96,6 +105,94 @@ describe("recurrence overlap", () => {
       kind: "EVENT",
       id: "event",
       date: "2026-09-16",
+    });
+  });
+
+  test("checks sparse monthly occurrences against a weekly series", () => {
+    const candidate = blockSeries({
+      id: "weekly",
+      recurrenceStartsAt: date("2026-01-31"),
+      daysOfWeek: [2],
+    });
+    const existing = eventSeries({
+      id: "monthly",
+      date: date("2026-01-31"),
+      recurrenceStartsAt: date("2026-01-31"),
+      recurrenceType: "MONTHLY",
+      recurrenceDayOfMonth: 31,
+    });
+
+    expect(findCalendarConflict(candidate, [existing])).toMatchObject({
+      id: "monthly",
+      date: "2026-03-31",
+    });
+  });
+
+  test("checks daily occurrences against a weekly series", () => {
+    const candidate = blockSeries({
+      id: "weekly",
+      recurrenceStartsAt: date("2026-09-14"),
+      daysOfWeek: [2],
+    });
+    const existing = eventSeries({
+      id: "daily",
+      date: date("2026-09-14"),
+      recurrenceStartsAt: date("2026-09-14"),
+      recurrenceType: "DAILY",
+      recurrenceInterval: 3,
+    });
+
+    expect(findCalendarConflict(candidate, [existing])).toMatchObject({
+      id: "daily",
+      date: "2026-09-29",
+    });
+  });
+
+  test("skips invalid yearly dates while looking for a conflict", () => {
+    const candidate = blockSeries({
+      id: "weekly",
+      recurrenceStartsAt: date("2028-02-29"),
+      daysOfWeek: [0],
+    });
+    const existing = eventSeries({
+      id: "yearly",
+      date: date("2028-02-29"),
+      recurrenceStartsAt: date("2028-02-29"),
+      recurrenceType: "YEARLY",
+      recurrenceInterval: 1,
+    });
+
+    expect(findCalendarConflict(candidate, [existing])).toMatchObject({
+      id: "yearly",
+      date: "2032-02-29",
+    });
+  });
+
+  test("checks moved exceptions even when base weekly days are incompatible", () => {
+    const candidate = blockSeries({
+      id: "candidate",
+      recurrenceStartsAt: date("2026-02-02"),
+      daysOfWeek: [2],
+    });
+    const existing = blockSeries({
+      id: "existing",
+      recurrenceStartsAt: date("2026-02-02"),
+      daysOfWeek: [1],
+    });
+    existing.exceptions = [{
+      id: "move",
+      blockId: "existing",
+      action: "move",
+      startMin: 540,
+      endMin: 600,
+      date: date("2026-02-02"),
+      targetDate: date("2026-02-03"),
+    }];
+
+    expect(findCalendarConflict(candidate, [existing])).toMatchObject({
+      id: "existing",
+      date: "2026-02-03",
+      source: "exception",
     });
   });
 

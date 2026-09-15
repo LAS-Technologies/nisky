@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Request, Response } from "express";
-import type { TimeBlock, TimeBlockException } from "../../infra/prisma/generated/prisma/client";
+import type { CalendarEvent, TimeBlock, TimeBlockException } from "../../infra/prisma/generated/prisma/client";
 
 const createdAt = DateTime.fromISO("2026-09-03", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate();
 function calendarDate(value: string) {
@@ -52,6 +52,29 @@ const historicalEvent = {
   recurrenceType: "WEEKLY",
   recurrenceEndsAt: historicalEnd,
 };
+const indefiniteMondayEvent = {
+  id: "indefinite-monday-event",
+  userId: "user-under-test",
+  title: "Evento del lunes",
+  date: calendarDate("2026-09-14"),
+  recurrenceStartsAt: calendarDate("2026-09-14"),
+  allDay: false,
+  startMin: 540,
+  endMin: 600,
+  location: null,
+  color: null,
+  recurrenceType: "WEEKLY",
+  recurrenceInterval: 1,
+  recurrenceDaysOfWeek: [1],
+  recurrenceDayOfMonth: null,
+  recurrenceEndsAt: null,
+  remindBeforeMin: 0,
+  lastRemindNotifiedAt: null,
+  lastStartNotifiedAt: null,
+  lastEndWarnNotifiedAt: null,
+  createdAt,
+  updatedAt: createdAt,
+} as CalendarEvent;
 const timeBlockFindFirst = mock(async ({ where }: { where: Record<string, unknown> }) => {
   if (where.id === currentBlock.id) return { ...currentBlock, exceptions: blockExceptions };
   if (where.id === oneOffBlock.id) return oneOffBlock;
@@ -175,6 +198,24 @@ describe("TimeBlockService.update", () => {
     expect(DateTime.fromJSDate(update.data.recurrenceStartsAt as Date, { zone: "America/Santo_Domingo" }).toISODate()).toBe("2026-09-14");
     expect(update.data.daysOfWeek).toEqual([1, 2, 3]);
     expect(update.data.repeatEveryWeeks).toBe(1);
+  });
+
+  test("converts a one-off block without blocking on a non-overlapping recurring event", async () => {
+    calendarEventRows = [indefiniteMondayEvent];
+    timeBlockUpdate.mockClear();
+
+    await new TimeBlockService().update("user-under-test", oneOffBlock.id, {
+      date: null,
+      daysOfWeek: [2, 3],
+      startMin: 540,
+      endMin: 600,
+      repeatEveryWeeks: 1,
+      repeatEndsAt: null,
+    });
+
+    const update = timeBlockUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> };
+    expect(DateTime.fromJSDate(update.data.recurrenceStartsAt as Date, { zone: "America/Santo_Domingo" }).toISODate()).toBe("2026-09-14");
+    expect(update.data.daysOfWeek).toEqual([2, 3]);
   });
 
   test("anchors a newly created recurring block at local midnight", async () => {
