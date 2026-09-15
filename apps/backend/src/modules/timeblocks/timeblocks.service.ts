@@ -93,6 +93,7 @@ export class TimeBlockService {
     endMin: number,
     date: Date | null,
     excludeId?: string,
+    fromDate?: Date,
   ) {
     if (date) {
       const [blocks, events, exceptions] = await Promise.all([
@@ -124,10 +125,19 @@ export class TimeBlockService {
       return;
     }
 
+    const recurrenceScope = fromDate
+      ? {
+          OR: [
+            { date: { gte: fromDate } },
+            { date: null, OR: [{ repeatEndsAt: null }, { repeatEndsAt: { gte: fromDate } }] },
+          ],
+        }
+      : {};
     const overlapping = await prisma.timeBlock.findFirst({
       where: {
         userId,
         id: excludeId ? { not: excludeId } : undefined,
+        ...recurrenceScope,
         daysOfWeek: { hasSome: daysOfWeek },
         startMin: { lt: endMin },
         endMin: { gt: startMin },
@@ -155,12 +165,19 @@ export class TimeBlockService {
       },
     });
     const exceptionClash = exceptions.find(
-      (exc) =>
-        daysOfWeek.includes(dayOfWeek(exc.targetDate ?? exc.date)) &&
-        exc.startMin !== null &&
-        exc.endMin !== null &&
-        exc.startMin < endMin &&
-        exc.endMin > startMin,
+      (exc) => {
+        const occurrenceDate = exc.targetDate ?? exc.date;
+        if (fromDate) {
+          const occurrenceDay = DateTime.fromJSDate(occurrenceDate, { zone: TIME_BLOCKS_TZ }).startOf("day");
+          const firstDay = DateTime.fromJSDate(fromDate, { zone: TIME_BLOCKS_TZ }).startOf("day");
+          if (occurrenceDay < firstDay) return false;
+        }
+        return daysOfWeek.includes(dayOfWeek(occurrenceDate)) &&
+          exc.startMin !== null &&
+          exc.endMin !== null &&
+          exc.startMin < endMin &&
+          exc.endMin > startMin;
+      },
     );
     if (exceptionClash) {
       const label = exceptionClash.block.name ?? exceptionClash.block.project?.name ?? "bloque sin nombre";
@@ -168,8 +185,18 @@ export class TimeBlockService {
     }
 
     const now = DateTime.now().setZone(TIME_BLOCKS_TZ).startOf("day").toJSDate();
+    const eventFrom = fromDate ?? now;
     const futureEvents = await prisma.calendarEvent.findMany({
-      where: { userId, date: { gte: now } },
+      where: {
+        userId,
+        OR: [
+          { recurrenceType: null, date: { gte: eventFrom } },
+          {
+            recurrenceType: { not: null },
+            OR: [{ recurrenceEndsAt: null }, { recurrenceEndsAt: { gte: eventFrom } }],
+          },
+        ],
+      },
       select: { date: true, allDay: true, startMin: true, endMin: true },
     });
     const eventClash = futureEvents.some((event) => {
@@ -250,7 +277,15 @@ export class TimeBlockService {
       if (!project) throw new AppError("NOT_FOUND", "Proyecto no encontrado");
     }
 
-    await this.assertNoOverlap(userId, daysOfWeek, startMin, endMin, nextDate?.toJSDate() ?? null, id);
+    await this.assertNoOverlap(
+      userId,
+      daysOfWeek,
+      startMin,
+      endMin,
+      nextDate?.toJSDate() ?? null,
+      id,
+      effectiveDate.toJSDate(),
+    );
 
     const splitDate = effectiveDate.minus({ days: 1 }).toJSDate();
     const effectiveDateValue = effectiveDate.toJSDate();
