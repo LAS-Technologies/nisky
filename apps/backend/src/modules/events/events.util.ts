@@ -54,11 +54,12 @@ export function eventOccurrenceOn(
     return { occurs: eventDate.hasSame(target, "day"), startMin: event.startMin, endMin: event.endMin, isException: false };
   }
 
+  const recurrenceStart = dayInTz(event.recurrenceStartsAt ?? event.date);
   if (event.recurrenceEndsAt && target > dayInTz(event.recurrenceEndsAt).endOf("day")) {
     return { occurs: false, isException: false };
   }
 
-  if (target < eventDate) return { occurs: false, isException: false };
+  if (target < recurrenceStart) return { occurs: false, isException: false };
 
   const interval = event.recurrenceInterval ?? 1;
   const diffDays = Math.floor(target.diff(eventDate, "days").days);
@@ -76,7 +77,7 @@ export function eventOccurrenceOn(
         ? event.recurrenceDaysOfWeek
         : [eventDate.weekday % 7];
       const dowMatch = recurrenceDays.includes(targetDow);
-      const weekDiff = Math.floor(diffDays / 7);
+      const weekDiff = Math.floor(target.startOf("week").diff(eventDate.startOf("week"), "days").days / 7);
       return dowMatch && weekDiff % interval === 0
         ? { occurs: true, startMin: event.startMin, endMin: event.endMin, isException: false }
         : { occurs: false, isException: false };

@@ -136,6 +136,7 @@ model TimeBlock {
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   date      DateTime?
+  recurrenceStartsAt DateTime?
   name      String?
   daysOfWeek Int[]
   startMin  Int
@@ -181,6 +182,7 @@ model CalendarEvent {
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title                 String   @db.VarChar(200)
   date                  DateTime
+  recurrenceStartsAt    DateTime?
   allDay                Boolean  @default(false)
   startMin              Int?
   endMin                Int?
@@ -246,6 +248,7 @@ model TimeBlockException {
   blockId   String
   block     TimeBlock                @relation(fields: [blockId], references: [id], onDelete: Cascade)
   date      DateTime
+  targetDate DateTime?
   action    TimeBlockExceptionAction
   startMin  Int?
   endMin    Int?

@@ -4,7 +4,7 @@ import { pushService } from "../modules/push/push.service";
 import { defaultNotificationSettings } from "../utils/notifications/notification-settings";
 import { recordNotificationLog } from "../modules/push/notification-log.service";
 import { scheduleInTimezone } from "../utils/cron-timezone";
-import { blockOccurrenceOn, dayOfWeek, nowMinutes, TIME_BLOCKS_TZ } from "../modules/timeblocks/timeblocks.util";
+import { blockOccurrenceOn, nowMinutes, TIME_BLOCKS_TZ } from "../modules/timeblocks/timeblocks.util";
 
 function nowInTz() {
   return DateTime.now().setZone(TIME_BLOCKS_TZ);
@@ -23,18 +23,18 @@ function notifiedToday(value: Date | null) {
 
 export async function processTimeBlockNotifications() {
   const nowMin = nowMinutes();
-  const dayOfWeekNow = dayOfWeek();
   const todayStart = DateTime.now().setZone(TIME_BLOCKS_TZ).startOf("day").toJSDate();
 
   const [dayBlocks, exceptions] = await Promise.all([
     prisma.timeBlock.findMany({
       where: {
         isActive: true,
-        daysOfWeek: { has: dayOfWeekNow },
       },
       include: { project: true, user: true },
     }),
-    prisma.timeBlockException.findMany({ where: { date: { gte: todayStart } } }),
+    prisma.timeBlockException.findMany({
+      where: { OR: [{ date: { gte: todayStart } }, { targetDate: { gte: todayStart } }] },
+    }),
   ]);
 
   const dueBlocks = dayBlocks.flatMap((block) => {

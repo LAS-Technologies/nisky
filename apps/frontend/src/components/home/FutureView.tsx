@@ -49,7 +49,11 @@ export function FutureView({
         {days.map((day) => {
           const dayTasks = tasks.filter((task) => task.dueDate && localDateKey(task.dueDate) === day.key).slice(0, 3);
           const dayBlocks = blocks
-            .filter((block) => (block.date ? block.date === day.key : block.daysOfWeek.includes(new Date(`${day.key}T12:00:00.000Z`).getDay())))
+            .filter((block) => {
+              if (block.date) return block.date === day.key;
+              if (block.recurrenceStartsAt && block.recurrenceStartsAt.slice(0, 10) > day.key) return false;
+              return block.daysOfWeek.includes(new Date(`${day.key}T12:00:00.000Z`).getDay());
+            })
             .sort((a, b) => a.startMin - b.startMin);
           return (
             <div className="space-y-2" key={day.key}>

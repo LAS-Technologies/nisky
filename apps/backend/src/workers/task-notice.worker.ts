@@ -151,7 +151,14 @@ async function sendMorningDigest() {
           where: { userId, isActive: true },
           include: {
             project: true,
-            exceptions: { where: { date: { gte: toUtc(today), lt: toUtc(tomorrow) } } },
+            exceptions: {
+              where: {
+                OR: [
+                  { date: { gte: toUtc(today), lt: toUtc(tomorrow) } },
+                  { targetDate: { gte: toUtc(today), lt: toUtc(tomorrow) } },
+                ],
+              },
+            },
           },
         }),
       ]);

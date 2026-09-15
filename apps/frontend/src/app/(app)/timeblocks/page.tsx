@@ -55,18 +55,19 @@ function recurrenceMovePatch(event: CalendarEvent, sourceDate: Date, targetDate:
       ? event.recurrenceDaysOfWeek
       : [sourceDay];
     return {
+      date: toISODateString(targetDate),
       recurrenceDaysOfWeek: Array.from(new Set(
         recurrenceDays.map((day) => (day === sourceDay ? targetDay : day)),
       )).sort((a, b) => a - b),
     };
   }
   if (event.recurrenceType === "MONTHLY") {
-    return { recurrenceDayOfMonth: targetDate.getDate() };
+    return { date: toISODateString(targetDate), recurrenceDayOfMonth: targetDate.getDate() };
   }
   if (event.recurrenceType === "YEARLY") {
     return { date: toISODateString(targetDate) };
   }
-  return {};
+  return { date: toISODateString(targetDate) };
 }
 
 function EventMoveModal({
@@ -102,8 +103,8 @@ function EventMoveModal({
           <DialogTitle className="font-headline-xs text-headline-xs normal-case tracking-normal">Mover «{title}»</DialogTitle>
           <DialogDescription className="font-body-md text-body-md text-on-surface-variant">
           {changingDay
-            ? `Arrastraste la ocurrencia del ${eventMoveDateLabel(sourceDate)} al ${eventMoveDateLabel(targetDate)}. Elige el alcance del cambio.`
-            : "Elige si el nuevo horario aplica a este día o a todas las ocurrencias del evento."}
+            ? `Arrastraste la ocurrencia del ${eventMoveDateLabel(sourceDate)} al ${eventMoveDateLabel(targetDate)}. Elige el alcance; las anteriores se conservarán.`
+            : "Elige si el nuevo horario aplica a este día o desde esta ocurrencia en adelante."}
           </DialogDescription>
         </DialogHeader>
         {!allDay && (
@@ -146,7 +147,7 @@ function EventMoveModal({
             onClick={() => onSave("all")}
             type="button"
           >
-            Todas las ocurrencias
+            Todas las futuras
           </button>
         </div>
       </DialogContent>
@@ -171,9 +172,9 @@ function ResizeResolveModal({
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
       <DialogContent className="max-w-md rounded-lg border-outline-variant bg-surface shadow-cadence-3" showCloseButton={false}>
         <DialogHeader className="text-left">
-          <DialogTitle className="font-headline-xs text-headline-xs normal-case tracking-normal">¿Aplicar cambio a un solo día?</DialogTitle>
+          <DialogTitle className="font-headline-xs text-headline-xs normal-case tracking-normal">¿Desde cuándo aplicar el cambio?</DialogTitle>
           <DialogDescription className="font-body-md text-body-md text-on-surface-variant">
-          Este bloque se repite varios días. Puedes moverlo solo el {date} o cambiar el horario original para siempre.
+          Este bloque se repite varios días. Puedes cambiarlo solo el {date} o desde ese día en adelante; las fechas anteriores se conservarán.
           </DialogDescription>
         </DialogHeader>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -186,7 +187,7 @@ function ResizeResolveModal({
             onClick={onOriginal}
             type="button"
           >
-            Cambiar original
+            Desde este día en adelante
           </button>
           <button
             className="min-h-11 rounded-md bg-primary px-4 py-2 font-body-md text-body-md text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
@@ -228,6 +229,7 @@ function TimeBlocksContent() {
     startMin: number;
     endMin: number;
     days: number[];
+    sourceDate: string;
     draggedDate: string;
   } | null>(null);
   const [dayStartTime, setDayStartTime] = useState("06:00");
@@ -405,7 +407,14 @@ function TimeBlocksContent() {
     setPreviewBlockDate(date ?? null);
   };
 
-  const resizeBlock = async (block: TimeBlock, startMin: number, endMin: number, days: number[], draggedDate?: string) => {
+  const resizeBlock = async (
+    block: TimeBlock,
+    startMin: number,
+    endMin: number,
+    days: number[],
+    draggedDate?: string,
+    sourceDate?: string,
+  ) => {
     const daysChanged =
       days.length !== block.daysOfWeek.length ||
       days.some((day, index) => day !== block.daysOfWeek[index]);
@@ -414,16 +423,17 @@ function TimeBlocksContent() {
       !!draggedDate &&
       exceptions.some((exc) => {
         if (exc.blockId !== block.id || exc.action !== "move") return false;
-        const d = parseDateOnly(exc.date);
-        const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        return dayKey === draggedDate;
+        const source = toISODateString(parseDateOnly(exc.date));
+        const target = exc.targetDate ? toISODateString(parseDateOnly(exc.targetDate)) : null;
+        return source === (sourceDate ?? draggedDate) || target === draggedDate;
       });
 
     if (!daysChanged && hasMoveException) {
       try {
         await mutations.createException.mutateAsync({
           id: block.id,
-          date: draggedDate,
+          date: sourceDate ?? draggedDate,
+          ...((sourceDate ?? draggedDate) !== draggedDate ? { targetDate: draggedDate } : {}),
           action: "move",
           startMin,
           endMin,
@@ -437,8 +447,8 @@ function TimeBlocksContent() {
 
     if (startMin === block.startMin && endMin === block.endMin && !daysChanged) return;
 
-    if (!daysChanged && draggedDate && (block.daysOfWeek.length > 1 || block.repeatEveryWeeks > 1)) {
-      setResolveDraft({ block, startMin, endMin, days, draggedDate });
+    if (draggedDate && !block.date) {
+      setResolveDraft({ block, startMin, endMin, days, sourceDate: sourceDate ?? draggedDate, draggedDate });
       return;
     }
 
@@ -455,11 +465,12 @@ function TimeBlocksContent() {
 
   const resolveAsException = async () => {
     if (!resolveDraft) return;
-    const { block, startMin, endMin, draggedDate } = resolveDraft;
+    const { block, startMin, endMin, sourceDate, draggedDate } = resolveDraft;
     try {
       await mutations.createException.mutateAsync({
         id: block.id,
-        date: draggedDate,
+        date: sourceDate,
+        ...(sourceDate !== draggedDate ? { targetDate: draggedDate } : {}),
         action: "move",
         startMin,
         endMin,
@@ -473,13 +484,13 @@ function TimeBlocksContent() {
 
   const resolveAsOriginal = async () => {
     if (!resolveDraft) return;
-    const { block, startMin, endMin, days } = resolveDraft;
+    const { block, startMin, endMin, sourceDate, days } = resolveDraft;
     try {
       await mutations.update.mutateAsync({
         id: block.id,
-        payload: { startMin, endMin, daysOfWeek: days },
+        payload: { effectiveFrom: sourceDate, startMin, endMin, daysOfWeek: days },
       });
-      toast.success("Horario actualizado para todos los días");
+      toast.success("Horario actualizado desde este día");
     } catch {
       toast.error("Ups, no pudimos ajustar el bloque. Inténtalo de nuevo.");
     }
@@ -600,11 +611,12 @@ function TimeBlocksContent() {
         await eventMutations.updateEvent.mutateAsync({
           id: eventMoveDraft.event.id,
           payload: {
+            effectiveFrom: sourceDate,
             ...(startMin !== null && endMin !== null ? { startMin, endMin } : { allDay: true }),
             ...(dayChanged ? recurrenceMovePatch(eventMoveDraft.event, eventMoveDraft.sourceDate, eventMoveDraft.targetDate) : {}),
           },
         });
-        toast.success("Evento movido en todas las ocurrencias");
+        toast.success("Evento actualizado desde esta ocurrencia");
       } else {
         await eventMutations.createException.mutateAsync({
           eventId: eventMoveDraft.event.id,

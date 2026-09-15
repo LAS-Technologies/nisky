@@ -46,22 +46,37 @@ function sameLocalDay(a: Date, b: Date) {
 }
 
 function blockOccurrenceOn(block: TimeBlock, date: Date, exceptions: TimeBlockException[]) {
-  if (block.date && !sameLocalDay(parseDateOnly(block.date), date)) return null;
-  if (!block.daysOfWeek.includes(date.getDay())) return null;
-  if (block.repeatEndsAt && monday(parseDateOnly(block.repeatEndsAt)) < monday(date)) return null;
-  if (block.repeatEveryWeeks > 1) {
-    const weeks = Math.floor((monday(date).getTime() - monday(new Date(block.createdAt)).getTime()) / (7 * 86_400_000));
-    if (weeks < 0 || weeks % block.repeatEveryWeeks !== 0) return null;
-  }
-
   const exception = exceptions.find(
     (item) => item.blockId === block.id && sameLocalDay(parseDateOnly(item.date), date),
   );
   if (exception?.action === "skip") return null;
+  if (exception?.action === "move" && exception.targetDate) return null;
+  if (exception?.action === "move" && exception.startMin !== null && exception.endMin !== null) {
+    return { startMin: exception.startMin, endMin: exception.endMin };
+  }
+
+  const movedException = exceptions.find(
+    (item) => item.blockId === block.id
+      && item.action === "move"
+      && item.targetDate
+      && sameLocalDay(parseDateOnly(item.targetDate), date),
+  );
+  if (movedException && movedException.startMin !== null && movedException.endMin !== null) {
+    return { startMin: movedException.startMin, endMin: movedException.endMin };
+  }
+
+  if (block.date && !sameLocalDay(parseDateOnly(block.date), date)) return null;
+  if (block.recurrenceStartsAt && parseDateOnly(block.recurrenceStartsAt).getTime() > new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()) return null;
+  if (!block.daysOfWeek.includes(date.getDay())) return null;
+  if (block.repeatEndsAt && parseDateOnly(block.repeatEndsAt).getTime() < new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()) return null;
+  if (block.repeatEveryWeeks > 1) {
+    const weeks = Math.floor((monday(date).getTime() - monday(parseDateOnly(block.recurrenceStartsAt ?? block.createdAt)).getTime()) / (7 * 86_400_000));
+    if (weeks < 0 || weeks % block.repeatEveryWeeks !== 0) return null;
+  }
 
   return {
-    startMin: exception?.action === "move" && exception.startMin !== null ? exception.startMin : block.startMin,
-    endMin: exception?.action === "move" && exception.endMin !== null ? exception.endMin : block.endMin,
+    startMin: block.startMin,
+    endMin: block.endMin,
   };
 }
 

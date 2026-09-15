@@ -38,6 +38,7 @@ type BlockCandidate = {
   daysOfWeek: number[];
   repeatEveryWeeks: number;
   repeatEndsAt: Date | null;
+  recurrenceStartsAt: Date | null;
   createdAt: Date;
 };
 
@@ -49,7 +50,7 @@ function nextBlockOccurrence(blocks: TimeBlockWithProject[], exceptions: TimeBlo
   for (let offset = 0; offset < 30; offset += 1) {
     const day = now.plus({ days: offset }).startOf("day");
     for (const block of blocks) {
-      const occ = blockOccurrenceOn(block as any, day.toJSDate(), exceptions, TZ);
+      const occ = blockOccurrenceOn(block, day.toJSDate(), exceptions, TZ);
       if (!occ.occurs) continue;
       if (offset === 0 && occ.startMin <= now.hour * 60 + now.minute) continue;
       if (!best || day < bestDay! || (day.equals(bestDay!) && occ.startMin < best.startMin)) {
@@ -86,7 +87,10 @@ export class HomeService {
         include: { project: true },
       }),
       prisma.timeBlockException.findMany({
-        where: { userId, date: { gte: todayStart.toJSDate() } },
+        where: {
+          userId,
+          OR: [{ date: { gte: todayStart.toJSDate() } }, { targetDate: { gte: todayStart.toJSDate() } }],
+        },
       }),
     ]);
 

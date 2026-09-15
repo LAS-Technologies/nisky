@@ -47,10 +47,11 @@ function sameLocalDay(a: Date, b: Date) {
 
 function blockOccursOn(block: TimeBlock, day: Date) {
   if (block.date && !sameLocalDay(parseDateOnly(block.date), day)) return false;
+  if (block.recurrenceStartsAt && parseDateOnly(block.recurrenceStartsAt).getTime() > new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) return false;
   if (!block.daysOfWeek.includes(day.getDay())) return false;
-  if (block.repeatEndsAt && monday(parseDateOnly(block.repeatEndsAt)) < monday(day)) return false;
+  if (block.repeatEndsAt && parseDateOnly(block.repeatEndsAt).getTime() < new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) return false;
   if (block.repeatEveryWeeks > 1) {
-    const weeks = Math.floor((monday(day).getTime() - monday(new Date(block.createdAt)).getTime()) / (7 * 86_400_000));
+    const weeks = Math.floor((monday(day).getTime() - monday(parseDateOnly(block.recurrenceStartsAt ?? block.createdAt)).getTime()) / (7 * 86_400_000));
     if (weeks < 0 || weeks % block.repeatEveryWeeks !== 0) return false;
   }
   return true;
@@ -60,6 +61,27 @@ function exceptionFor(block: TimeBlock, day: Date, exceptions: TimeBlockExceptio
   return exceptions.find(
     (exc) => exc.blockId === block.id && sameLocalDay(parseDateOnly(exc.date), day),
   );
+}
+
+function blockOccurrenceOn(block: TimeBlock, day: Date, exceptions: TimeBlockException[]) {
+  const exception = exceptionFor(block, day, exceptions);
+  if (exception?.action === "skip") return null;
+  if (exception?.action === "move" && exception.targetDate) return null;
+  if (exception?.action === "move" && exception.startMin !== null && exception.endMin !== null) {
+    return { startMin: exception.startMin, endMin: exception.endMin };
+  }
+
+  const movedException = exceptions.find(
+    (item) => item.blockId === block.id
+      && item.action === "move"
+      && item.targetDate
+      && sameLocalDay(parseDateOnly(item.targetDate), day),
+  );
+  if (movedException && movedException.startMin !== null && movedException.endMin !== null) {
+    return { startMin: movedException.startMin, endMin: movedException.endMin };
+  }
+  if (!blockOccursOn(block, day)) return null;
+  return { startMin: block.startMin, endMin: block.endMin };
 }
 
 function timesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number) {
@@ -80,13 +102,14 @@ type ResizeDraft = {
   baseEndMin: number;
   days: number[];
   dragDay: number;
+  sourceDate: string;
   draggedDate: string;
   durationMin: number;
-columns: DayColumn[];
-   container: HTMLElement;
-   grid: HTMLElement;
-   left: number;
-   width: number;
+  columns: DayColumn[];
+  container: HTMLElement;
+  grid: HTMLElement;
+  left: number;
+  width: number;
   headerOffset: number;
 };
 
@@ -160,6 +183,7 @@ export function TimeBlockWeekGrid({
     endMin: number,
     days: number[],
     draggedDate?: string,
+    sourceDate?: string,
   ) => void;
   onEventClick?: (event: CalendarEvent, date: Date) => void;
   onEventMove?: (
@@ -454,7 +478,8 @@ export function TimeBlockWeekGrid({
           state.startMin,
           state.endMin,
           state.days,
-          state.draggedDate
+          state.draggedDate,
+          state.sourceDate,
         );
       } else if (!movedRef.current) {
         onBlockClickRef.current(
@@ -498,13 +523,22 @@ export function TimeBlockWeekGrid({
     const dragException = dragDateObj
       ? exceptionFor(block, dragDateObj, exceptions)
       : undefined;
+    const movedException = dragDateObj
+      ? exceptions.find(
+        (exception) => exception.blockId === block.id
+          && exception.action === "move"
+          && exception.targetDate
+          && sameLocalDay(parseDateOnly(exception.targetDate), dragDateObj),
+      )
+      : undefined;
+    const activeException = dragException ?? movedException;
     const baseStartMin =
-      dragException?.action === "move" && dragException.startMin !== null
-        ? dragException.startMin
+      activeException?.action === "move" && activeException.startMin !== null
+        ? activeException.startMin
         : block.startMin;
     const baseEndMin =
-      dragException?.action === "move" && dragException.endMin !== null
-        ? dragException.endMin
+      activeException?.action === "move" && activeException.endMin !== null
+        ? activeException.endMin
         : block.endMin;
     blockDownRef.current = true;
     downRef.current = { x: event.clientX, y: event.clientY };
@@ -527,6 +561,7 @@ export function TimeBlockWeekGrid({
       left: colRect ? colRect.left - gridRect.left + 4 : 0,
       width: colRect ? colRect.width - 8 : 0,
       headerOffset: colRect ? colRect.top - gridRect.top : 0,
+      sourceDate: activeException?.action === "move" ? toDateKey(parseDateOnly(activeException.date)) : draggedDate,
     };
     setDraft(draftRef.current);
     attachWindowListeners();
@@ -555,13 +590,22 @@ export function TimeBlockWeekGrid({
     const dragException = dragDateObj
       ? exceptionFor(block, dragDateObj, exceptions)
       : undefined;
+    const movedException = dragDateObj
+      ? exceptions.find(
+        (exception) => exception.blockId === block.id
+          && exception.action === "move"
+          && exception.targetDate
+          && sameLocalDay(parseDateOnly(exception.targetDate), dragDateObj),
+      )
+      : undefined;
+    const activeException = dragException ?? movedException;
     const baseStartMin =
-      dragException?.action === "move" && dragException.startMin !== null
-        ? dragException.startMin
+      activeException?.action === "move" && activeException.startMin !== null
+        ? activeException.startMin
         : block.startMin;
     const baseEndMin =
-      dragException?.action === "move" && dragException.endMin !== null
-        ? dragException.endMin
+      activeException?.action === "move" && activeException.endMin !== null
+        ? activeException.endMin
         : block.endMin;
     blockDownRef.current = true;
     downRef.current = { x: event.clientX, y: event.clientY };
@@ -584,6 +628,7 @@ export function TimeBlockWeekGrid({
       left: colRect.left - gridRect.left + 4,
       width: colRect.width - 8,
       headerOffset: colRect.top - gridRect.top,
+      sourceDate: activeException?.action === "move" ? toDateKey(parseDateOnly(activeException.date)) : draggedDate,
     };
     setDraft(draftRef.current);
     attachWindowListeners();
@@ -951,30 +996,30 @@ export function TimeBlockWeekGrid({
               const dueTaskCount = dueTaskCountsByDate[toDateKey(day.date)] ?? 0;
               const dueTaskLabel = dueTaskCount === 1 ? "1 vence" : `${dueTaskCount} vencen`;
               return (
-              <div
-                className={cn(
-                    "sticky top-0 z-40 border-b bg-surface-container-low px-2 py-2 text-center",
-                  day.key === todayKey
-                    ? "border-t-2 border-t-secondary text-secondary"
-                    : "border-t border-t-outline-variant text-on-surface-variant",
-                )}
-                data-day={day.dayOfWeek}
-                data-day-header
-                key={day.key}
-              >
-                <span
+                <div
                   className={cn(
-                    "flex flex-col items-center rounded-md py-1",
-                     day.key === todayKey && "bg-surface-container-low",
+                    "sticky top-0 z-40 border-b bg-surface-container-low px-2 py-2 text-center",
+                    day.key === todayKey
+                      ? "border-t-2 border-t-secondary text-secondary"
+                      : "border-t border-t-outline-variant text-on-surface-variant",
                   )}
+                  data-day={day.dayOfWeek}
+                  data-day-header
+                  key={day.key}
                 >
-                  <p className="font-data-mono text-data-mono text-xs font-semibold">
-                    {DAY_NAMES_SHORT[day.dayOfWeek]}
-                  </p>
-                  <p className="mt-0.5 font-data-mono text-data-mono text-xs">
-                    {day.date.getDate()}
-                  </p>
-                 </span>
+                  <span
+                    className={cn(
+                      "flex flex-col items-center rounded-md py-1",
+                      day.key === todayKey && "bg-surface-container-low",
+                    )}
+                  >
+                    <p className="font-data-mono text-data-mono text-xs font-semibold">
+                      {DAY_NAMES_SHORT[day.dayOfWeek]}
+                    </p>
+                    <p className="mt-0.5 font-data-mono text-data-mono text-xs">
+                      {day.date.getDate()}
+                    </p>
+                  </span>
                   {onDayTasksClick && dueTaskCount > 0 && (
                     <button
                       aria-label={`Ver ${dueTaskCount} ${dueTaskCount === 1 ? "tarea con vencimiento" : "tareas con vencimiento"}`}
@@ -989,38 +1034,38 @@ export function TimeBlockWeekGrid({
                       {dueTaskLabel}
                     </button>
                   )}
-                 <div className="mt-1 flex flex-col gap-1">
-                  {events
-                    .filter((e) => e.allDay && sameLocalDay(parseDateOnly(e.date), day.date))
-                    .map((e) => {
-                      const hidden =
-                        allDayEventDraft?.event.id === e.id &&
-                        allDayEventDraft.sourceDate === day.key;
-                      return (
-                        <button
-                          className={cn(
-                            "block w-full truncate rounded-full bg-surface-container-high px-2 text-left text-[10px] font-medium text-on-surface transition-colors hover:bg-surface-container-highest",
-                            moveEnabled && "cursor-grab touch-none active:cursor-grabbing",
-                            hidden && "pointer-events-none opacity-0",
-                          )}
-                          key={e.id}
-                          onClick={(clickEvent) => {
-                            if (clickEvent.detail === 0 || !movedRef.current) onEventClick?.(e, day.date);
-                          }}
-                          onPointerDown={
-                            moveEnabled
-                              ? (pointerEvent) => startAllDayEventDrag(pointerEvent, e, day.date)
-                              : undefined
-                          }
-                          title={e.title}
-                          type="button"
-                        >
-                          {e.title}
-                        </button>
-                      );
-                    })}
+                  <div className="mt-1 flex flex-col gap-1">
+                    {events
+                      .filter((e) => e.allDay && sameLocalDay(parseDateOnly(e.date), day.date))
+                      .map((e) => {
+                        const hidden =
+                          allDayEventDraft?.event.id === e.id &&
+                          allDayEventDraft.sourceDate === day.key;
+                        return (
+                          <button
+                            className={cn(
+                              "block w-full truncate rounded-full bg-surface-container-high px-2 text-left text-[10px] font-medium text-on-surface transition-colors hover:bg-surface-container-highest",
+                              moveEnabled && "cursor-grab touch-none active:cursor-grabbing",
+                              hidden && "pointer-events-none opacity-0",
+                            )}
+                            key={e.id}
+                            onClick={(clickEvent) => {
+                              if (clickEvent.detail === 0 || !movedRef.current) onEventClick?.(e, day.date);
+                            }}
+                            onPointerDown={
+                              moveEnabled
+                                ? (pointerEvent) => startAllDayEventDrag(pointerEvent, e, day.date)
+                                : undefined
+                            }
+                            title={e.title}
+                            type="button"
+                          >
+                            {e.title}
+                          </button>
+                        );
+                      })}
+                  </div>
                 </div>
-              </div>
               );
             })}
             <div
@@ -1039,7 +1084,7 @@ export function TimeBlockWeekGrid({
             </div>
             {days.map((day) => {
               const dayBlocks = blocks
-                 .filter((block) => blockOccursOn(block, day.date))
+                .filter((block) => blockOccurrenceOn(block, day.date, exceptions) !== null)
                  .sort((a, b) => a.startMin - b.startMin);
               const dayEvents = events.filter(
                 (e) => sameLocalDay(parseDateOnly(e.date), day.date),
@@ -1062,10 +1107,10 @@ export function TimeBlockWeekGrid({
                   style={{ height: totalPx }}
                 >
                   {dayBlocks.map((block) => {
-                    const exc = exceptionFor(block, day.date, exceptions);
-                    if (exc?.action === "skip") return null;
-                    const startMin = exc?.action === "move" && exc.startMin !== null ? exc.startMin : block.startMin;
-                    const endMin = exc?.action === "move" && exc.endMin !== null ? exc.endMin : block.endMin;
+                    const occurrence = blockOccurrenceOn(block, day.date, exceptions);
+                    if (!occurrence) return null;
+                    const startMin = occurrence.startMin;
+                    const endMin = occurrence.endMin;
                     const conflict = dayEvents.find(
                       (event) => dayConflicts({ ...block, startMin, endMin }, event),
                     );
@@ -1083,17 +1128,15 @@ export function TimeBlockWeekGrid({
                   {dayEvents
                     .filter((e) => !e.allDay && e.startMin !== null && e.endMin !== null)
                     .map((e) => {
-                      const conflict = dayBlocks.find((block) => {
-                        const exc = exceptionFor(block, day.date, exceptions);
-                        if (exc?.action === "skip") return false;
-                        const bStart = exc?.action === "move" && exc.startMin !== null ? exc.startMin : block.startMin;
-                        const bEnd = exc?.action === "move" && exc.endMin !== null ? exc.endMin : block.endMin;
-                        return dayConflicts({ ...block, startMin: bStart, endMin: bEnd }, e);
-                      });
-                       const hidden =
-                         eventDraft?.event.id === e.id &&
-                         eventDraft.sourceDate === toDateKey(day.date);
-                       return renderEventBlock(e, conflict, day.date, hidden);
+                    const conflict = dayBlocks.find((block) => {
+                      const occurrence = blockOccurrenceOn(block, day.date, exceptions);
+                      if (!occurrence) return false;
+                      return dayConflicts({ ...block, startMin: occurrence.startMin, endMin: occurrence.endMin }, e);
+                    });
+                    const hidden =
+                      eventDraft?.event.id === e.id &&
+                      eventDraft.sourceDate === toDateKey(day.date);
+                    return renderEventBlock(e, conflict, day.date, hidden);
                     })}
                   {isToday && nowMin >= dayStartMin && nowMin <= dayEndMin && (
                     <div

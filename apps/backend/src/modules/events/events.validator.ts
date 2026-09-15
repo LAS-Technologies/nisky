@@ -57,6 +57,7 @@ export const updateEventSchema = z
   .object({
     title: eventBaseFields.title.optional(),
     date: eventBaseFields.date.optional(),
+    effectiveFrom: dateValue.optional(),
     allDay: allDayValue.optional(),
     startMin: eventBaseFields.startMin.optional(),
     endMin: eventBaseFields.endMin.optional(),

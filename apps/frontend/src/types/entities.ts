@@ -106,6 +106,7 @@ export interface TimeBlock {
   userId: string;
   projectId: string | null;
   date: string | null;
+  recurrenceStartsAt: string | null;
   name: string | null;
   daysOfWeek: number[];
   startMin: number;
@@ -160,6 +161,7 @@ export interface CalendarEvent {
   userId: string;
   title: string;
   date: string;
+  recurrenceStartsAt: string | null;
   baseDate?: string;
   allDay: boolean;
   startMin: number | null;
@@ -202,6 +204,7 @@ export interface TimeBlockException {
   blockId: string;
   userId: string;
   date: string;
+  targetDate: string | null;
   action: "skip" | "move";
   startMin: number | null;
   endMin: number | null;

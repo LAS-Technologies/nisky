@@ -28,6 +28,7 @@ export const updateTimeBlockSchema = z
     ...timeBlockFields,
     projectId: timeBlockFields.projectId,
     name: timeBlockFields.name,
+    effectiveFrom: dateValue.optional(),
     daysOfWeek: timeBlockFields.daysOfWeek.optional(),
     startMin: timeBlockFields.startMin.optional(),
     endMin: timeBlockFields.endMin.optional(),
@@ -57,16 +58,21 @@ export type UpdateTimeBlockSettingsDto = z.infer<typeof updateTimeBlockSettingsS
 
 export const createTimeBlockExceptionSchema = z.object({
   date: dateValue,
+  targetDate: dateValue.nullable().optional(),
   action: z.enum(["skip", "move"]),
   startMin: z.number().int().min(0).max(1439).optional(),
   endMin: z.number().int().min(1).max(1440).optional(),
-}).refine(
-  (data) => data.action === "skip" || (data.startMin !== undefined && data.endMin !== undefined && data.endMin - data.startMin >= 5),
-  {
-    message: "Al mover, debes especificar startMin y endMin (duración >= 5)",
-    path: ["endMin"],
+}).superRefine((data, ctx) => {
+  if (data.action === "skip" && data.targetDate !== undefined && data.targetDate !== null) {
+    ctx.addIssue({ code: "custom", path: ["targetDate"], message: "Saltar no admite una fecha destino" });
   }
-);
+  if (data.action === "move" && (data.startMin === undefined || data.endMin === undefined || data.endMin - data.startMin < 5)) {
+    ctx.addIssue({ code: "custom", path: ["endMin"], message: "Al mover, debes especificar startMin y endMin (duración >= 5)" });
+  }
+  if (data.action === "move" && ((data.startMin === undefined) !== (data.endMin === undefined))) {
+    ctx.addIssue({ code: "custom", path: ["endMin"], message: "startMin y endMin deben enviarse juntos" });
+  }
+});
 export type CreateTimeBlockExceptionDto = z.infer<typeof createTimeBlockExceptionSchema>;
 
 export const exceptionIdParamSchema = z.object({

@@ -92,7 +92,9 @@ export class EventsService {
 
   private async assertNoBlockOverlap(userId: string, date: Date, startMin: number | null, endMin: number | null) {
     if (startMin === null || endMin === null) return;
-    const dayExceptions = await prisma.timeBlockException.findMany({ where: { userId, date } });
+    const dayExceptions = await prisma.timeBlockException.findMany({
+      where: { userId, OR: [{ date }, { targetDate: date }] },
+    });
     const blocks = await prisma.timeBlock.findMany({
       where: { userId },
       include: { project: { select: { name: true } } },
@@ -143,6 +145,7 @@ export class EventsService {
         userId,
         title: data.title,
         date: localDate,
+        recurrenceStartsAt: null,
         allDay: data.allDay,
         startMin,
         endMin,
@@ -158,7 +161,126 @@ export class EventsService {
     });
   }
 
+  private async updateFromDate(userId: string, id: string, data: UpdateEventDto) {
+    const current = await this.getById(userId, id);
+    if (!current.recurrenceType) {
+      throw new AppError("BAD_REQUEST", "Solo los eventos recurrentes admiten cambios futuros");
+    }
+
+    const effectiveDate = DateTime.fromISO(data.effectiveFrom!, { zone: TIME_BLOCKS_TZ }).startOf("day");
+    const currentStart = DateTime.fromJSDate(current.date, { zone: TIME_BLOCKS_TZ }).startOf("day");
+    if (!effectiveDate.isValid || effectiveDate < currentStart) {
+      throw new AppError("BAD_REQUEST", "La fecha de cambio no es válida para este evento");
+    }
+
+    const nextDate = data.date !== undefined
+      ? DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day")
+      : effectiveDate;
+    if (!nextDate.isValid || nextDate < currentStart) {
+      throw new AppError("BAD_REQUEST", "La nueva fecha no es válida para este evento");
+    }
+    const splitDate = effectiveDate;
+    if (current.recurrenceEndsAt && splitDate > DateTime.fromJSDate(current.recurrenceEndsAt, { zone: TIME_BLOCKS_TZ }).endOf("day")) {
+      throw new AppError("BAD_REQUEST", "La fecha de cambio está después del final del evento");
+    }
+
+    const allDay = data.allDay ?? current.allDay;
+    const startMin = allDay ? null : data.startMin ?? current.startMin;
+    const endMin = allDay ? null : data.endMin ?? current.endMin;
+    const recurrenceType = data.recurrenceType !== undefined ? data.recurrenceType : current.recurrenceType;
+    const recurrenceInterval = data.recurrenceInterval ?? current.recurrenceInterval;
+    const recurrenceDaysOfWeek = data.recurrenceDaysOfWeek ?? current.recurrenceDaysOfWeek;
+    const recurrenceDayOfMonth = data.recurrenceDayOfMonth !== undefined
+      ? data.recurrenceDayOfMonth
+      : current.recurrenceDayOfMonth;
+    const recurrenceEndsAt = data.recurrenceEndsAt === undefined
+      ? current.recurrenceEndsAt
+      : data.recurrenceEndsAt
+        ? DateTime.fromISO(data.recurrenceEndsAt, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate()
+        : null;
+    const nextRecurrenceEndsAt = recurrenceType ? recurrenceEndsAt : null;
+    if (nextRecurrenceEndsAt && nextRecurrenceEndsAt < splitDate.toJSDate()) {
+      throw new AppError("BAD_REQUEST", "La fecha final debe ser igual o posterior a la fecha de cambio");
+    }
+
+    await this.assertNoBlockOverlap(userId, nextDate.toJSDate(), startMin, endMin);
+    await this.assertNoEventOverlap(userId, nextDate.toJSDate(), startMin, endMin, id);
+
+    const splitDateValue = splitDate.toJSDate();
+    const effectiveDateValue = effectiveDate.toJSDate();
+    return prisma.$transaction(async (tx) => {
+      await tx.calendarEvent.update({
+        where: { id },
+        data: { recurrenceEndsAt: splitDate.minus({ days: 1 }).toJSDate() },
+      });
+      const created = await tx.calendarEvent.create({
+        data: {
+          userId: current.userId,
+          title: data.title ?? current.title,
+          date: nextDate.toJSDate(),
+          recurrenceStartsAt: recurrenceType ? effectiveDate.toJSDate() : null,
+          allDay,
+          startMin,
+          endMin,
+          location: data.location !== undefined ? data.location : current.location,
+          color: data.color !== undefined ? data.color : current.color,
+          recurrenceType,
+          recurrenceInterval,
+          recurrenceDaysOfWeek,
+          recurrenceDayOfMonth,
+          recurrenceEndsAt: nextRecurrenceEndsAt,
+          remindBeforeMin: data.remindBeforeMin ?? current.remindBeforeMin,
+          lastRemindNotifiedAt: null,
+          lastStartNotifiedAt: null,
+          lastEndWarnNotifiedAt: null,
+        },
+      });
+      const carriedExceptions = await tx.calendarEventException.findMany({
+        where: { eventId: id, date: { lt: splitDateValue }, targetDate: { gte: splitDateValue } },
+      });
+      await tx.calendarEventException.updateMany({
+        where: { eventId: id, date: { gte: splitDateValue } },
+        data: { eventId: created.id },
+      });
+      for (const exception of carriedExceptions) {
+        await tx.calendarEventException.create({
+          data: {
+            eventId: created.id,
+            userId: exception.userId,
+            date: exception.date,
+            targetDate: exception.targetDate,
+            action: exception.action,
+            startMin: exception.startMin,
+            endMin: exception.endMin,
+          },
+        });
+      }
+      if (nextDate < effectiveDate) {
+        await tx.calendarEventException.upsert({
+          where: { eventId_date: { eventId: created.id, date: effectiveDateValue } },
+          create: {
+            eventId: created.id,
+            userId: current.userId,
+            date: effectiveDateValue,
+            targetDate: nextDate.toJSDate(),
+            action: "move",
+            startMin: allDay ? null : startMin,
+            endMin: allDay ? null : endMin,
+          },
+          update: {
+            targetDate: nextDate.toJSDate(),
+            action: "move",
+            startMin: allDay ? null : startMin,
+            endMin: allDay ? null : endMin,
+          },
+        });
+      }
+      return created;
+    });
+  }
+
   async update(userId: string, id: string, data: UpdateEventDto) {
+    if (data.effectiveFrom !== undefined) return this.updateFromDate(userId, id, data);
     const current = await this.getById(userId, id);
     const localDate = data.date ? DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate() : current.date;
     const allDay = data.allDay ?? current.allDay;

@@ -17,6 +17,10 @@ export interface CalendarEventPayload {
   remindBeforeMin?: number;
 }
 
+export interface CalendarEventUpdatePayload extends Partial<CalendarEventPayload> {
+  effectiveFrom?: string;
+}
+
 export interface EventExceptionPayload {
   date: string;
   targetDate?: string | null;
@@ -41,7 +45,7 @@ export const eventsApi = {
     return res.data.data;
   },
 
-  updateEvent: async (id: string, payload: Partial<CalendarEventPayload>) => {
+  updateEvent: async (id: string, payload: CalendarEventUpdatePayload) => {
     const res = await api.patch<{ data: CalendarEvent }>(`/events/${id}`, payload);
     return res.data.data;
   },

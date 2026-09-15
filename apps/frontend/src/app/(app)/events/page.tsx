@@ -211,6 +211,7 @@ export default function EventsPage() {
         <EventPreviewModal
           event={previewingEvent}
           key={previewingEvent.id}
+          occurrenceDate={parseDateOnly(previewingEvent.date)}
           onClose={() => setPreviewingEvent(null)}
         />
       )}

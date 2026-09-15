@@ -80,8 +80,8 @@ export function useTimeBlockMutations() {
   });
 
   const createException = useMutation({
-    mutationFn: (params: { id: string; date: string; action: "skip" | "move"; startMin?: number; endMin?: number }) =>
-      createTimeBlockException(params.id, params.date, params.action, params.startMin, params.endMin),
+    mutationFn: (params: { id: string; date: string; targetDate?: string; action: "skip" | "move"; startMin?: number; endMin?: number }) =>
+      createTimeBlockException(params.id, params.date, params.action, params.startMin, params.endMin, params.targetDate),
     onSuccess: invalidate,
   });
 

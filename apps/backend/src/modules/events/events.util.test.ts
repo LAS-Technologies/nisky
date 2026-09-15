@@ -9,6 +9,7 @@ const event = {
   userId: "user-under-test",
   title: "Evento semanal",
   date,
+  recurrenceStartsAt: null,
   allDay: false,
   startMin: 540,
   endMin: 600,
@@ -70,5 +71,38 @@ describe("event occurrences", () => {
         isException: true,
       }),
     ]);
+  });
+
+  test("stops the historical series before a future change", () => {
+    const endDate = DateTime.fromJSDate(date, { zone: "America/Santo_Domingo" }).plus({ days: 6 }).startOf("day").toJSDate();
+    const closedEvent = { ...event, recurrenceEndsAt: endDate };
+    const nextOccurrence = DateTime.fromJSDate(date, { zone: "America/Santo_Domingo" }).plus({ days: 7 }).toJSDate();
+
+    expect(eventOccurrenceOn(closedEvent, date).occurs).toBe(true);
+    expect(eventOccurrenceOn(closedEvent, nextOccurrence).occurs).toBe(false);
+  });
+
+  test("does not show a future series before its effective start", () => {
+    const effectiveStart = DateTime.fromISO("2026-09-07", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate();
+    const futureEvent = {
+      ...event,
+      date: DateTime.fromISO("2026-09-03", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate(),
+      recurrenceDaysOfWeek: [1],
+      recurrenceStartsAt: effectiveStart,
+    };
+
+    expect(eventOccurrenceOn(futureEvent, date).occurs).toBe(false);
+    expect(eventOccurrenceOn(futureEvent, effectiveStart).occurs).toBe(true);
+  });
+
+  test("measures weekly intervals from calendar weeks", () => {
+    const biweekly = {
+      ...event,
+      recurrenceInterval: 2,
+      recurrenceDaysOfWeek: [1, 4],
+    };
+    const followingMonday = DateTime.fromISO("2026-09-07", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate();
+
+    expect(eventOccurrenceOn(biweekly, followingMonday).occurs).toBe(false);
   });
 });

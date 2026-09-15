@@ -100,7 +100,14 @@ export class TaskScheduleService {
     const blockIds = rows.map((row) => row.timeBlockId).filter((id): id is string => Boolean(id));
     if (blockIds.length === 0) return [];
     return prisma.timeBlockException.findMany({
-      where: { userId, blockId: { in: blockIds }, date: { gte: from, lte: to } },
+      where: {
+        userId,
+        blockId: { in: blockIds },
+        OR: [
+          { date: { gte: from, lte: to } },
+          { targetDate: { gte: from, lte: to } },
+        ],
+      },
     });
   }
 
@@ -132,7 +139,14 @@ export class TaskScheduleService {
     if (!block.isActive) throw new AppError("BAD_REQUEST", "El bloque está inactivo");
     const dateKey = serializeDate(date);
     const exceptions = await prisma.timeBlockException.findMany({
-      where: { userId, blockId: timeBlockId, date: { gte: calendarStart(dateKey), lte: calendarEnd(dateKey) } },
+      where: {
+        userId,
+        blockId: timeBlockId,
+        OR: [
+          { date: { gte: calendarStart(dateKey), lte: calendarEnd(dateKey) } },
+          { targetDate: { gte: calendarStart(dateKey), lte: calendarEnd(dateKey) } },
+        ],
+      },
     });
     const occurrence = blockOccurrenceOn(block, date, exceptions, TASK_SCHEDULES_TZ);
     if (!occurrence.occurs) throw new AppError("BAD_REQUEST", "El bloque no ocurre en esa fecha");

@@ -38,15 +38,15 @@ export type CreateTimeBlockPayload = {
   remindBeforeMin?: number;
 };
 
-export type UpdateTimeBlockPayload = Partial<CreateTimeBlockPayload> & { isActive?: boolean };
+export type UpdateTimeBlockPayload = Partial<CreateTimeBlockPayload> & { effectiveFrom?: string; isActive?: boolean };
 
 export async function createTimeBlock(payload: CreateTimeBlockPayload) {
   const { data } = await api.post<{ data: TimeBlock }>("/timeblocks", payload);
   return data.data;
 }
 
-export async function createTimeBlockException(id: string, date: string, action: "skip" | "move", startMin?: number, endMin?: number) {
-  const { data } = await api.post<{ data: unknown }>(`/timeblocks/${id}/exception`, { date, action, startMin, endMin });
+export async function createTimeBlockException(id: string, date: string, action: "skip" | "move", startMin?: number, endMin?: number, targetDate?: string) {
+  const { data } = await api.post<{ data: unknown }>(`/timeblocks/${id}/exception`, { date, targetDate, action, startMin, endMin });
   return data.data;
 }
 

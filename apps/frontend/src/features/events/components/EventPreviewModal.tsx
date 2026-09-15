@@ -6,7 +6,7 @@ import { Bell, CalendarDays, CalendarX, ExternalLink, MapPin, Pencil, Repeat2, R
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CalendarEvent, EventRecurrenceType } from "@/types/entities";
-import type { CalendarEventPayload } from "@/features/events/api/events";
+import type { CalendarEventUpdatePayload } from "@/features/events/api/events";
 import { useEventExceptionsQuery, useEventMutations } from "@/features/events/hooks/useEvents";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -270,11 +270,17 @@ export function EventPreviewModal({
     titleInputRef.current.select();
   }, [titleEditing]);
 
-  const savePatch = async (field: EventDraftField, payload: Partial<CalendarEventPayload>, successMessage: string) => {
+  const savePatch = async (field: EventDraftField, payload: Partial<CalendarEventUpdatePayload>, successMessage: string) => {
     if (pendingField) return null;
     setPendingField(field);
     try {
-      const updated = await updateEvent.mutateAsync({ id: currentEvent.id, payload });
+      const effectiveFrom = recurring && occurrenceKey ? { effectiveFrom: occurrenceKey } : {};
+      const updated = await updateEvent.mutateAsync({ id: currentEvent.id, payload: { ...effectiveFrom, ...payload } });
+      if (effectiveFrom.effectiveFrom) {
+        toast.success(successMessage);
+        onClose();
+        return updated;
+      }
       setCurrentEvent(updated);
       toast.success(successMessage);
       return updated;

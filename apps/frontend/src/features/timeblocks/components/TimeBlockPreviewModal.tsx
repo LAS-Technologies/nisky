@@ -157,6 +157,7 @@ export function TimeBlockPreviewModal({
   const recurring = !currentBlock.date;
   const exceptionsQuery = useBlockExceptionsQuery(recurring ? currentBlock.id : null);
   const exceptions = exceptionsQuery.data ?? [];
+  const occurrenceKey = occurrenceDate ? toDateKey(occurrenceDate) : null;
 
   useEffect(() => {
     if (!nameEditing || !titleInputRef.current) return;
@@ -169,7 +170,13 @@ export function TimeBlockPreviewModal({
     if (pendingField) return null;
     setPendingField(field);
     try {
-      const updated = await update.mutateAsync({ id: currentBlock.id, payload });
+      const effectiveFrom = recurring && occurrenceKey ? { effectiveFrom: occurrenceKey } : {};
+      const updated = await update.mutateAsync({ id: currentBlock.id, payload: { ...effectiveFrom, ...payload } });
+      if (effectiveFrom.effectiveFrom) {
+        toast.success(successMessage);
+        onClose();
+        return updated;
+      }
       setCurrentBlock(updated);
       toast.success(successMessage);
       return updated;
@@ -278,8 +285,6 @@ export function TimeBlockPreviewModal({
   };
 
   const title = currentBlock.name ?? selectedProject?.name ?? "Tiempo libre";
-  const occurrenceKey = occurrenceDate ? toDateKey(occurrenceDate) : null;
-
   const confirmSkip = async () => {
     if (!occurrenceKey || !onSkipDay || skipPending) return;
     setSkipPending(true);
@@ -742,7 +747,11 @@ export function TimeBlockPreviewModal({
                     <div className="min-w-0">
                       <p className="truncate font-body-sm text-body-sm font-semibold capitalize text-on-surface">{exceptionDate(exception.date)}</p>
                       <p className="font-body-sm text-body-sm text-on-surface-variant">
-                        {exception.action === "skip" ? "Día saltado" : "Horario cambiado ese día"}
+                        {exception.action === "skip"
+                          ? "Día saltado"
+                          : exception.targetDate
+                            ? `Movido al ${exceptionDate(exception.targetDate)}`
+                            : "Horario cambiado ese día"}
                       </p>
                     </div>
                     <Button
