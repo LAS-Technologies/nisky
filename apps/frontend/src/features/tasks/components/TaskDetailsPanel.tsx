@@ -1303,6 +1303,11 @@ export function TaskDetailsPanel({
               )}
             </section>
 
+            <TaskReferences
+              initialReferences={current.references}
+              taskId={current.id}
+            />
+
             <TaskReminderPanel
               dueDate={displayDueDate}
               recurrence={displayRecurrence}
@@ -1366,11 +1371,6 @@ export function TaskDetailsPanel({
                 </button>
               )}
             </section>
-
-            <TaskReferences
-              initialReferences={current.references}
-              taskId={current.id}
-            />
 
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-3">
