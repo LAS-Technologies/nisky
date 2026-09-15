@@ -189,6 +189,7 @@ export interface CalendarEventException {
   eventId: string;
   userId: string;
   date: string;
+  targetDate: string | null;
   action: "skip" | "move";
   startMin: number | null;
   endMin: number | null;

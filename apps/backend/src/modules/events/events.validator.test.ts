@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { updateEventSchema } from "./events.validator";
+import { createEventExceptionSchema, updateEventSchema } from "./events.validator";
 
 describe("event update validator", () => {
   test("keeps reminder updates partial", () => {
@@ -21,5 +21,15 @@ describe("event update validator", () => {
       recurrenceDaysOfWeek: [1],
       recurrenceType: "WEEKLY",
     });
+  });
+
+  test("accepts a target date when moving an occurrence", () => {
+    expect(createEventExceptionSchema.parse({
+      date: "2026-09-14",
+      targetDate: "2026-09-15",
+      action: "move",
+      startMin: 540,
+      endMin: 600,
+    })).toMatchObject({ targetDate: "2026-09-15", action: "move" });
   });
 });

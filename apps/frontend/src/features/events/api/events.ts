@@ -19,6 +19,7 @@ export interface CalendarEventPayload {
 
 export interface EventExceptionPayload {
   date: string;
+  targetDate?: string | null;
   action: "skip" | "move";
   startMin?: number;
   endMin?: number;

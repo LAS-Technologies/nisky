@@ -36,15 +36,46 @@ import {
 
 type SlotPrefill = { dayOfWeek: number; startMin: number; endMin: number; date: string; oneOff?: boolean };
 type EventMoveScope = "single" | "all";
+type EventMoveDraft = { event: CalendarEvent; sourceDate: Date; targetDate: Date };
 
 function toISODateString(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function eventMoveDateLabel(date: Date) {
+  return date.toLocaleDateString("es-DO", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function recurrenceMovePatch(event: CalendarEvent, sourceDate: Date, targetDate: Date) {
+  if (sourceDate.getTime() === targetDate.getTime()) return {};
+  if (event.recurrenceType === "WEEKLY") {
+    const sourceDay = sourceDate.getDay();
+    const targetDay = targetDate.getDay();
+    const recurrenceDays = event.recurrenceDaysOfWeek.length > 0
+      ? event.recurrenceDaysOfWeek
+      : [sourceDay];
+    return {
+      recurrenceDaysOfWeek: Array.from(new Set(
+        recurrenceDays.map((day) => (day === sourceDay ? targetDay : day)),
+      )).sort((a, b) => a - b),
+    };
+  }
+  if (event.recurrenceType === "MONTHLY") {
+    return { recurrenceDayOfMonth: targetDate.getDate() };
+  }
+  if (event.recurrenceType === "YEARLY") {
+    return { date: toISODateString(targetDate) };
+  }
+  return {};
 }
 
 function EventMoveModal({
   title,
   startTime,
   endTime,
+  sourceDate,
+  targetDate,
+  allDay = false,
   busy,
   onChangeStart,
   onChangeEnd,
@@ -54,41 +85,49 @@ function EventMoveModal({
   title: string;
   startTime: string;
   endTime: string;
+  sourceDate: Date;
+  targetDate: Date;
+  allDay?: boolean;
   busy: boolean;
   onChangeStart: (value: string) => void;
   onChangeEnd: (value: string) => void;
   onCancel: () => void;
   onSave: (scope: EventMoveScope) => void;
 }) {
+  const changingDay = sourceDate && targetDate && toISODateString(sourceDate) !== toISODateString(targetDate);
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
       <DialogContent className="max-w-md rounded-lg border-outline-variant bg-surface shadow-cadence-3" keyboardAware showCloseButton={false}>
         <DialogHeader className="text-left">
           <DialogTitle className="font-headline-xs text-headline-xs normal-case tracking-normal">Mover «{title}»</DialogTitle>
           <DialogDescription className="font-body-md text-body-md text-on-surface-variant">
-          Elige si el nuevo horario aplica a este día o a todas las ocurrencias del evento.
+          {changingDay
+            ? `Arrastraste la ocurrencia del ${eventMoveDateLabel(sourceDate)} al ${eventMoveDateLabel(targetDate)}. Elige el alcance del cambio.`
+            : "Elige si el nuevo horario aplica a este día o a todas las ocurrencias del evento."}
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="font-label-md text-label-md text-on-surface-variant">Inicio</span>
-            <input
-              className="field mt-1"
-              onChange={(e) => onChangeStart(e.target.value)}
-              type="time"
-              value={startTime}
-            />
-          </label>
-          <label className="block">
-            <span className="font-label-md text-label-md text-on-surface-variant">Fin</span>
-            <input
-              className="field mt-1"
-              onChange={(e) => onChangeEnd(e.target.value)}
-              type="time"
-              value={endTime}
-            />
-          </label>
-        </div>
+        {!allDay && (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="font-label-md text-label-md text-on-surface-variant">Inicio</span>
+              <input
+                className="field mt-1"
+                onChange={(e) => onChangeStart(e.target.value)}
+                type="time"
+                value={startTime}
+              />
+            </label>
+            <label className="block">
+              <span className="font-label-md text-label-md text-on-surface-variant">Fin</span>
+              <input
+                className="field mt-1"
+                onChange={(e) => onChangeEnd(e.target.value)}
+                type="time"
+                value={endTime}
+              />
+            </label>
+          </div>
+        )}
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <DialogClose asChild>
             <button className="min-h-11 rounded-md border border-outline-variant bg-surface px-4 py-2 font-body-md text-body-md text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:opacity-50" disabled={busy} type="button">Cancelar</button>
@@ -99,7 +138,7 @@ function EventMoveModal({
             onClick={() => onSave("single")}
             type="button"
           >
-            Solo este día
+            {changingDay ? "Solo esta ocurrencia" : "Solo este día"}
           </button>
           <button
             className="min-h-11 rounded-md bg-primary px-4 py-2 font-body-md text-body-md text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
@@ -220,7 +259,7 @@ function TimeBlocksContent() {
   const eventsQuery = useEventsQuery(from, to);
   const events = eventsQuery.data ?? [];
   const eventMutations = useEventMutations();
-  const [eventMoveDraft, setEventMoveDraft] = useState<{ event: CalendarEvent; date: Date } | null>(null);
+  const [eventMoveDraft, setEventMoveDraft] = useState<EventMoveDraft | null>(null);
   const [eventMoveStart, setEventMoveStart] = useState("09:00");
   const [eventMoveEnd, setEventMoveEnd] = useState("10:00");
   const exceptionsQuery = useWeekExceptionsQuery(from, to);
@@ -494,7 +533,7 @@ function TimeBlocksContent() {
     }
     setEventMoveStart(minToTime(event.startMin ?? 9 * 60));
     setEventMoveEnd(minToTime(event.endMin ?? 10 * 60));
-    setEventMoveDraft({ event, date });
+    setEventMoveDraft({ event, sourceDate: date, targetDate: date });
   };
 
   const handleEventMove = async (
@@ -504,7 +543,13 @@ function TimeBlocksContent() {
     startMin: number | null,
     endMin: number | null,
   ) => {
+    const dayChanged = toISODateString(sourceDate) !== toISODateString(targetDate);
     if (event.allDay) {
+      if (event.recurrenceType && dayChanged) {
+        setEventMoveDraft({ event, sourceDate, targetDate });
+        return;
+      }
+      if (event.recurrenceType) return;
       try {
         await eventMutations.updateEvent.mutateAsync({
           id: event.id,
@@ -520,7 +565,7 @@ function TimeBlocksContent() {
     if (event.recurrenceType) {
       setEventMoveStart(minToTime(startMin));
       setEventMoveEnd(minToTime(endMin));
-      setEventMoveDraft({ event, date: sourceDate });
+      setEventMoveDraft({ event, sourceDate, targetDate });
       return;
     }
 
@@ -541,23 +586,34 @@ function TimeBlocksContent() {
 
   const saveEventMove = async (scope: EventMoveScope) => {
     if (!eventMoveDraft) return;
-    const startMin = timeToMin(eventMoveStart);
-    const endMin = timeToMin(eventMoveEnd);
-    if (endMin <= startMin) {
+    const startMin = eventMoveDraft.event.allDay ? null : timeToMin(eventMoveStart);
+    const endMin = eventMoveDraft.event.allDay ? null : timeToMin(eventMoveEnd);
+    if (startMin !== null && endMin !== null && endMin <= startMin) {
       toast.error("El fin debe ser mayor al inicio.");
       return;
     }
+    const sourceDate = toISODateString(eventMoveDraft.sourceDate);
+    const targetDate = toISODateString(eventMoveDraft.targetDate);
+    const dayChanged = sourceDate !== targetDate;
     try {
       if (scope === "all") {
         await eventMutations.updateEvent.mutateAsync({
           id: eventMoveDraft.event.id,
-          payload: { startMin, endMin },
+          payload: {
+            ...(startMin !== null && endMin !== null ? { startMin, endMin } : { allDay: true }),
+            ...(dayChanged ? recurrenceMovePatch(eventMoveDraft.event, eventMoveDraft.sourceDate, eventMoveDraft.targetDate) : {}),
+          },
         });
         toast.success("Evento movido en todas las ocurrencias");
       } else {
         await eventMutations.createException.mutateAsync({
           eventId: eventMoveDraft.event.id,
-          payload: { date: toISODateString(eventMoveDraft.date), action: "move", startMin, endMin },
+          payload: {
+            date: sourceDate,
+            ...(dayChanged ? { targetDate } : {}),
+            action: "move",
+            ...(startMin !== null && endMin !== null ? { startMin, endMin } : {}),
+          },
         });
         toast.success("Evento movido ese día");
       }
@@ -779,11 +835,14 @@ function TimeBlocksContent() {
         <EventMoveModal
           busy={eventMutations.createException.isPending || eventMutations.updateEvent.isPending}
           endTime={eventMoveEnd}
+          allDay={eventMoveDraft.event.allDay}
           onChangeEnd={setEventMoveEnd}
           onChangeStart={setEventMoveStart}
           onCancel={() => setEventMoveDraft(null)}
           onSave={(scope) => void saveEventMove(scope)}
+          sourceDate={eventMoveDraft.sourceDate}
           startTime={eventMoveStart}
+          targetDate={eventMoveDraft.targetDate}
           title={eventMoveDraft.event.title}
         />
       )}

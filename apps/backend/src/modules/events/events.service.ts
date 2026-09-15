@@ -208,39 +208,44 @@ export class EventsService {
   }
 
   async createException(userId: string, id: string, data: CreateEventExceptionDto) {
-    await this.getById(userId, id);
+    const event = await this.getById(userId, id);
     const dateObj = DateTime.fromISO(data.date, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate();
+    const targetDateObj = data.targetDate
+      ? DateTime.fromISO(data.targetDate, { zone: TIME_BLOCKS_TZ }).startOf("day").toJSDate()
+      : null;
+    if (targetDateObj && targetDateObj.getTime() === dateObj.getTime()) {
+      throw new AppError("BAD_REQUEST", "La fecha destino debe ser diferente a la fecha original");
+    }
+    if (targetDateObj && !event.recurrenceType) {
+      throw new AppError("BAD_REQUEST", "Solo los eventos recurrentes admiten una fecha destino");
+    }
+    if (data.action === "move" && !event.allDay && (data.startMin === undefined || data.endMin === undefined)) {
+      throw new AppError("BAD_REQUEST", "Un evento con horario requiere startMin y endMin");
+    }
 
     if (data.action === "move" && data.startMin !== undefined && data.endMin !== undefined) {
-      const sameDayBlocks = await prisma.timeBlockException.findMany({ where: { userId, date: dateObj } });
-      const blocks = await prisma.timeBlock.findMany({ where: { userId } });
-      for (const block of blocks) {
-        const occ = blockOccurrenceOn(block, dateObj, sameDayBlocks);
-        if (!occ.occurs || occ.startMin >= data.endMin || occ.endMin <= data.startMin) continue;
-        throw new AppError("CONFLICT", "Ya tienes un bloque que se cruza con este horario");
-      }
-      const sameDayEvents = await prisma.calendarEvent.findMany({
-        where: { userId, date: dateObj, id: { not: id } },
-        include: { exceptions: true },
-      });
-      const eventClash = sameDayEvents.some((event) => {
-        const occ = eventOccurrenceOn(event, dateObj, event.exceptions);
-        if (!occ.occurs) return false;
-        if (event.allDay && occ.exceptionAction !== "move") return false;
-        const occStart = occ.startMin;
-        const occEnd = occ.endMin;
-        if (occStart === null || occStart === undefined || occEnd === null || occEnd === undefined) return false;
-        return occStart < data.endMin! && occEnd > data.startMin!;
-      });
-      if (eventClash) {
-        throw new AppError("CONFLICT", "Ya tienes un evento que se cruza con este horario");
-      }
+      const conflictDate = targetDateObj ?? dateObj;
+      await this.assertNoBlockOverlap(userId, conflictDate, data.startMin, data.endMin);
+      await this.assertNoEventOverlap(userId, conflictDate, data.startMin, data.endMin, id);
     }
 
     return prisma.calendarEventException.upsert({
       where: { eventId_date: { eventId: id, date: dateObj } },
-      create: { eventId: id, userId, date: dateObj, action: data.action, startMin: data.startMin, endMin: data.endMin },
-      update: { action: data.action, startMin: data.startMin, endMin: data.endMin },
+      create: {
+        eventId: id,
+        userId,
+        date: dateObj,
+        targetDate: targetDateObj,
+        action: data.action,
+        startMin: data.action === "move" ? data.startMin ?? null : null,
+        endMin: data.action === "move" ? data.endMin ?? null : null,
+      },
+      update: {
+        targetDate: targetDateObj,
+        action: data.action,
+        startMin: data.action === "move" ? data.startMin ?? null : null,
+        endMin: data.action === "move" ? data.endMin ?? null : null,
+      },
     });
   }
 

@@ -737,7 +737,11 @@ export function EventPreviewModal({
                   <div className="min-w-0">
                     <p className="truncate font-body-sm text-body-sm font-semibold capitalize text-on-surface">{exceptionDate(exception.date)}</p>
                     <p className="font-body-sm text-body-sm text-on-surface-variant">
-                      {exception.action === "skip" ? "Día saltado" : "Horario cambiado ese día"}
+                      {exception.action === "skip"
+                        ? "Día saltado"
+                        : exception.targetDate
+                          ? `Movido al ${exceptionDate(exception.targetDate)}`
+                          : "Horario cambiado ese día"}
                     </p>
                   </div>
                   <Button

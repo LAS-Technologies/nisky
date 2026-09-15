@@ -627,7 +627,7 @@ export function TimeBlockWeekGrid({
       draggedDate: sourceDate,
       durationMin: baseEndMin - baseStartMin,
       pointerOffsetPx: event.clientY - colRect.top - eventTop,
-      allowDayChange: kind === "event-move" && !calendarEvent.recurrenceType,
+      allowDayChange: kind === "event-move",
       columns,
       container,
       grid,
@@ -647,7 +647,7 @@ export function TimeBlockWeekGrid({
   ) => {
     event.preventDefault();
     event.stopPropagation();
-    if (!moveEnabled || calendarEvent.recurrenceType) return;
+    if (!moveEnabled) return;
     const grid = event.currentTarget.closest<HTMLElement>("[data-grid]");
     const container = scrollRef.current;
     if (!grid || !container) return;
@@ -999,7 +999,7 @@ export function TimeBlockWeekGrid({
                         <button
                           className={cn(
                             "block w-full truncate rounded-full bg-surface-container-high px-2 text-left text-[10px] font-medium text-on-surface transition-colors hover:bg-surface-container-highest",
-                            moveEnabled && !e.recurrenceType && "cursor-grab touch-none active:cursor-grabbing",
+                            moveEnabled && "cursor-grab touch-none active:cursor-grabbing",
                             hidden && "pointer-events-none opacity-0",
                           )}
                           key={e.id}
@@ -1007,7 +1007,7 @@ export function TimeBlockWeekGrid({
                             if (clickEvent.detail === 0 || !movedRef.current) onEventClick?.(e, day.date);
                           }}
                           onPointerDown={
-                            moveEnabled && !e.recurrenceType
+                            moveEnabled
                               ? (pointerEvent) => startAllDayEventDrag(pointerEvent, e, day.date)
                               : undefined
                           }

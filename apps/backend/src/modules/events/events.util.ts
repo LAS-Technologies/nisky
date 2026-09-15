@@ -32,8 +32,22 @@ export function eventOccurrenceOn(
   if (exc) {
     if (exc.action === "skip") return { occurs: false, isException: true, exceptionAction: "skip" };
     if (exc.action === "move") {
+      if (exc.targetDate) return { occurs: false, isException: true, exceptionAction: "move" };
       return { occurs: true, startMin: exc.startMin ?? null, endMin: exc.endMin ?? null, isException: true, exceptionAction: "move" };
     }
+  }
+
+  const movedOccurrence = exceptions.find(
+    (e) => e.action === "move" && e.targetDate && dayInTz(e.targetDate).hasSame(target, "day"),
+  );
+  if (movedOccurrence) {
+    return {
+      occurs: true,
+      startMin: movedOccurrence.startMin ?? null,
+      endMin: movedOccurrence.endMin ?? null,
+      isException: true,
+      exceptionAction: "move",
+    };
   }
 
   if (!event.recurrenceType) {
@@ -111,7 +125,12 @@ export function expandEventOccurrences(
   const toDt = dayInTz(to).endOf("day");
   const eventDt = dayInTz(event.date);
 
-  if (toDt < eventDt) return [];
+  const movedIntoRange = exceptions.some(
+    (exception) => exception.action === "move" && exception.targetDate
+      && dayInTz(exception.targetDate) >= fromDt
+      && dayInTz(exception.targetDate) <= toDt,
+  );
+  if (toDt < eventDt && !movedIntoRange) return [];
 
   const maxDays = Math.floor(toDt.diff(fromDt, "days").days) + 1;
   for (let i = 0; i <= maxDays; i++) {

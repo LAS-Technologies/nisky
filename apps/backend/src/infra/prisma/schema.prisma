@@ -222,6 +222,7 @@ model CalendarEventException {
   eventId   String
   event     CalendarEvent                @relation(fields: [eventId], references: [id], onDelete: Cascade)
   date      DateTime
+  targetDate DateTime?
   action    CalendarEventExceptionAction
   startMin  Int?
   endMin    Int?
