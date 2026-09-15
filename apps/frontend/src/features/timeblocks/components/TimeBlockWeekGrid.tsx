@@ -794,7 +794,8 @@ export function TimeBlockWeekGrid({
       <div
         key={`${event.id}-${dayDate ? toDateKey(dayDate) : "event"}`}
         className={cn(
-          "absolute z-20 overflow-hidden rounded-md border-l-2 px-2 py-1 text-left shadow-cadence-1",
+          "absolute overflow-visible rounded-md border-l-2 px-2 py-1 text-left shadow-cadence-1",
+          menuOpen ? "z-50" : "z-20",
           !preview && "inset-x-1",
           interactive && (moveEnabled ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-pointer"),
           preview && "pointer-events-none z-30",
