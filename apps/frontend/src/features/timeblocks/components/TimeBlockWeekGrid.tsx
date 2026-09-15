@@ -47,7 +47,7 @@ function sameLocalDay(a: Date, b: Date) {
 
 function blockOccursOn(block: TimeBlock, day: Date) {
   if (block.date && !sameLocalDay(parseDateOnly(block.date), day)) return false;
-  if (block.recurrenceStartsAt && parseDateOnly(block.recurrenceStartsAt).getTime() > new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) return false;
+  if (!block.date && parseDateOnly(block.recurrenceStartsAt ?? block.createdAt).getTime() > new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) return false;
   if (!block.daysOfWeek.includes(day.getDay())) return false;
   if (block.repeatEndsAt && parseDateOnly(block.repeatEndsAt).getTime() < new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) return false;
   if (block.repeatEveryWeeks > 1) {

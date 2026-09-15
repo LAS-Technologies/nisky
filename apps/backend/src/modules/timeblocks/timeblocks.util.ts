@@ -79,8 +79,8 @@ export function blockOccurrenceOn(
   }
 
   if (block.date && !sameDay(block.date, date, zone)) return { occurs: false };
-  if (block.recurrenceStartsAt
-    && DateTime.fromJSDate(date, { zone }).startOf("day") < DateTime.fromJSDate(block.recurrenceStartsAt, { zone }).startOf("day")) {
+  if (!block.date
+    && DateTime.fromJSDate(date, { zone }).startOf("day") < DateTime.fromJSDate(block.recurrenceStartsAt ?? block.createdAt, { zone }).startOf("day")) {
     return { occurs: false };
   }
   if (!block.daysOfWeek.includes(dayOfWeek(date, zone))) return { occurs: false };

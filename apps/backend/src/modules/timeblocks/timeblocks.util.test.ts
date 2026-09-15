@@ -100,6 +100,20 @@ describe("block occurrences", () => {
     });
   });
 
+  test("does not show a legacy recurring block before its creation date", () => {
+    const createdAt = DateTime.fromISO("2026-09-15", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate();
+    const previousDay = DateTime.fromJSDate(createdAt, { zone: "America/Santo_Domingo" }).minus({ days: 1 }).toJSDate();
+    const legacyBlock = { ...block, createdAt, daysOfWeek: [1, 2, 3] };
+
+    expect(blockOccurrenceOn(legacyBlock, previousDay)).toEqual({ occurs: false });
+    expect(blockOccurrenceOn(legacyBlock, createdAt)).toEqual({
+      occurs: true,
+      startMin: 540,
+      endMin: 600,
+      exceptionId: null,
+    });
+  });
+
   test("stops a series on the exact end date instead of the end week", () => {
     const endDate = DateTime.fromISO("2026-09-09", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate();
     const nextOccurrence = DateTime.fromISO("2026-09-10", { zone: "America/Santo_Domingo" }).startOf("day").toJSDate();
