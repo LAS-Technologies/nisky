@@ -22,6 +22,21 @@ function monday(date: Date) {
 
 type DayColumn = { el: HTMLElement; dayOfWeek: number };
 
+function columnAtX(columns: DayColumn[], x: number) {
+  const containing = columns.find((column) => {
+    const rect = column.el.getBoundingClientRect();
+    return x >= rect.left && x <= rect.right;
+  });
+  if (containing) return containing;
+
+  return columns.reduce<DayColumn | undefined>((closest, column) => {
+    if (!closest) return column;
+    const columnCenter = (column.el.getBoundingClientRect().left + column.el.getBoundingClientRect().right) / 2;
+    const closestCenter = (closest.el.getBoundingClientRect().left + closest.el.getBoundingClientRect().right) / 2;
+    return Math.abs(x - columnCenter) < Math.abs(x - closestCenter) ? column : closest;
+  }, undefined);
+}
+
 function sameLocalDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -88,6 +103,7 @@ type EventDragDraft = {
   sourceDate: string;
   draggedDate: string;
   durationMin: number;
+  pointerOffsetPx: number;
   allowDayChange: boolean;
   columns: DayColumn[];
   container: HTMLElement;
@@ -97,7 +113,22 @@ type EventDragDraft = {
   headerOffset: number;
 };
 
-type DragDraft = ResizeDraft | EventDragDraft;
+type AllDayEventDragDraft = {
+  event: CalendarEvent;
+  kind: "event-day-move";
+  dragDay: number;
+  sourceDate: string;
+  draggedDate: string;
+  columns: DayColumn[];
+  container: HTMLElement;
+  grid: HTMLElement;
+  left: number;
+  width: number;
+  top: number;
+  height: number;
+};
+
+type DragDraft = ResizeDraft | EventDragDraft | AllDayEventDragDraft;
 
 export function TimeBlockWeekGrid({
   blocks,
@@ -135,8 +166,8 @@ export function TimeBlockWeekGrid({
     event: CalendarEvent,
     sourceDate: Date,
     targetDate: Date,
-    startMin: number,
-    endMin: number,
+    startMin: number | null,
+    endMin: number | null,
   ) => void;
   onEventAction?: (event: CalendarEvent, date: Date, action: "skip" | "move") => void;
   dueTaskCountsByDate?: Record<string, number>;
@@ -289,17 +320,9 @@ export function TimeBlockWeekGrid({
 
       let colRect: DOMRect | null = null;
       let dragDay = state.dragDay;
-      if (state.kind === "move" || (state.kind === "event-move" && state.allowDayChange)) {
-        const first = state.columns[0]?.el.getBoundingClientRect();
-        const last =
-          state.columns[state.columns.length - 1]?.el.getBoundingClientRect();
-        if (first && last) {
-          const colWidth = (last.right - first.left) / state.columns.length;
-          const index = Math.min(
-            Math.max(Math.floor((event.clientX - first.left) / colWidth), 0),
-            state.columns.length - 1,
-          );
-          const column = state.columns[index];
+      if (state.kind === "move" || (state.kind === "event-move" && state.allowDayChange) || state.kind === "event-day-move") {
+        const column = columnAtX(state.columns, event.clientX);
+        if (column) {
           dragDay = column.dayOfWeek;
           colRect = column.el.getBoundingClientRect();
         }
@@ -310,9 +333,22 @@ export function TimeBlockWeekGrid({
         if (own) colRect = own.el.getBoundingClientRect();
       }
       if (!colRect) return;
+      if (state.kind === "event-day-move") {
+        const draggedDate = days.find((day) => day.dayOfWeek === dragDay)?.date;
+        const next: AllDayEventDragDraft = {
+          ...state,
+          dragDay,
+          draggedDate: draggedDate ? toDateKey(draggedDate) : state.draggedDate,
+          left: colRect.left - state.grid.getBoundingClientRect().left + 4,
+          width: colRect.width - 8,
+        };
+        draftRef.current = next;
+        setDraft(next);
+        return;
+      }
       const minute =
         Math.round(
-          (dayStartMin + ((event.clientY - colRect.top) / HOUR_PX) * 60) / 15,
+          (dayStartMin + ((event.clientY - colRect.top - (state.kind === "event-move" ? state.pointerOffsetPx : 0)) / HOUR_PX) * 60) / 15,
         ) * 15;
       const clamped = Math.min(Math.max(minute, dayStartMin), dayEndMin);
       let next: DragDraft = state;
@@ -374,6 +410,20 @@ export function TimeBlockWeekGrid({
       window.removeEventListener("pointercancel", endResize);
       if (!state) return;
       if ("event" in state) {
+        if (state.kind === "event-day-move") {
+          if (state.draggedDate !== state.sourceDate) {
+            onEventMoveRef.current?.(
+              state.event,
+              parseDateOnly(state.sourceDate),
+              parseDateOnly(state.draggedDate),
+              null,
+              null,
+            );
+          } else if (!movedRef.current) {
+            onEventClickRef.current?.(state.event, parseDateOnly(state.sourceDate));
+          }
+          return;
+        }
         const changed =
           state.startMin !== state.baseStartMin ||
           state.endMin !== state.baseEndMin ||
@@ -560,6 +610,7 @@ export function TimeBlockWeekGrid({
     const sourceDate = toDateKey(dayDate);
     const baseStartMin = calendarEvent.startMin;
     const baseEndMin = calendarEvent.endMin;
+    const eventTop = (Math.max(baseStartMin - dayStartMin, 0) * HOUR_PX) / 60;
     blockDownRef.current = true;
     downRef.current = { x: event.clientX, y: event.clientY };
     movedRef.current = false;
@@ -575,6 +626,7 @@ export function TimeBlockWeekGrid({
       sourceDate,
       draggedDate: sourceDate,
       durationMin: baseEndMin - baseStartMin,
+      pointerOffsetPx: event.clientY - colRect.top - eventTop,
       allowDayChange: kind === "event-move" && !calendarEvent.recurrenceType,
       columns,
       container,
@@ -584,6 +636,47 @@ export function TimeBlockWeekGrid({
       headerOffset: colRect.top - gridRect.top,
     };
     setEventMenu(null);
+    setDraft(draftRef.current);
+    attachWindowListeners();
+  };
+
+  const startAllDayEventDrag = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    calendarEvent: CalendarEvent,
+    dayDate: Date,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!moveEnabled || calendarEvent.recurrenceType) return;
+    const grid = event.currentTarget.closest<HTMLElement>("[data-grid]");
+    const container = scrollRef.current;
+    if (!grid || !container) return;
+    const columns = getColumns(grid);
+    const dragDay = dayDate.getDay();
+    const column = columns.find((item) => item.dayOfWeek === dragDay);
+    if (!column) return;
+    const gridRect = grid.getBoundingClientRect();
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    const columnRect = column.el.getBoundingClientRect();
+    const sourceDate = toDateKey(dayDate);
+    blockDownRef.current = true;
+    downRef.current = { x: event.clientX, y: event.clientY };
+    movedRef.current = false;
+    pointerPosRef.current = { x: event.clientX, y: event.clientY };
+    draftRef.current = {
+      event: calendarEvent,
+      kind: "event-day-move",
+      dragDay,
+      sourceDate,
+      draggedDate: sourceDate,
+      columns,
+      container,
+      grid,
+      left: columnRect.left - gridRect.left + 4,
+      width: columnRect.width - 8,
+      top: buttonRect.top - gridRect.top,
+      height: buttonRect.height,
+    };
     setDraft(draftRef.current);
     attachWindowListeners();
   };
@@ -701,7 +794,7 @@ export function TimeBlockWeekGrid({
       <div
         key={`${event.id}-${dayDate ? toDateKey(dayDate) : "event"}`}
         className={cn(
-          "absolute z-0 overflow-hidden rounded-md border-l-2 px-2 py-1 text-left shadow-cadence-1",
+          "absolute z-20 overflow-hidden rounded-md border-l-2 px-2 py-1 text-left shadow-cadence-1",
           !preview && "inset-x-1",
           interactive && (moveEnabled ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-pointer"),
           preview && "pointer-events-none z-30",
@@ -814,6 +907,8 @@ export function TimeBlockWeekGrid({
 
   const blockDraft = draft && "block" in draft ? draft : null;
   const eventDraft = draft && "event" in draft ? draft : null;
+  const timedEventDraft = eventDraft?.kind !== "event-day-move" ? eventDraft : null;
+  const allDayEventDraft = eventDraft?.kind === "event-day-move" ? eventDraft : null;
   const draftProject = blockDraft
     ? projects.find((item) => item.id === blockDraft.block.projectId)
     : null;
@@ -828,13 +923,13 @@ export function TimeBlockWeekGrid({
     ? blockDraft.headerOffset + (Math.min(blockDraft.endMin - dayStartMin, totalMin) * HOUR_PX) / 60
     : 0;
   const draftHeight = blockDraft ? Math.max(draftBottom - draftTop, 12) : 0;
-  const eventDraftTop = eventDraft
-    ? eventDraft.headerOffset + (Math.max(eventDraft.startMin - dayStartMin, 0) * HOUR_PX) / 60
+  const eventDraftTop = timedEventDraft
+    ? timedEventDraft.headerOffset + (Math.max(timedEventDraft.startMin - dayStartMin, 0) * HOUR_PX) / 60
     : 0;
-  const eventDraftBottom = eventDraft
-    ? eventDraft.headerOffset + (Math.min(eventDraft.endMin - dayStartMin, totalMin) * HOUR_PX) / 60
+  const eventDraftBottom = timedEventDraft
+    ? timedEventDraft.headerOffset + (Math.min(timedEventDraft.endMin - dayStartMin, totalMin) * HOUR_PX) / 60
     : 0;
-  const eventDraftHeight = eventDraft ? Math.max(eventDraftBottom - eventDraftTop, 12) : 0;
+  const eventDraftHeight = timedEventDraft ? Math.max(eventDraftBottom - eventDraftTop, 12) : 0;
 
   return (
     <div className={cn("flex min-w-0 flex-col", draft && "select-none")}>
@@ -862,6 +957,8 @@ export function TimeBlockWeekGrid({
                     ? "border-t-2 border-t-secondary text-secondary"
                     : "border-t border-t-outline-variant text-on-surface-variant",
                 )}
+                data-day={day.dayOfWeek}
+                data-day-header
                 key={day.key}
               >
                 <span
@@ -894,17 +991,33 @@ export function TimeBlockWeekGrid({
                  <div className="mt-1 flex flex-col gap-1">
                   {events
                     .filter((e) => e.allDay && sameLocalDay(parseDateOnly(e.date), day.date))
-                    .map((e) => (
-                      <button
-                        className="block w-full truncate rounded-full bg-surface-container-high px-2 text-left text-[10px] font-medium text-on-surface transition-colors hover:bg-surface-container-highest"
-                        key={e.id}
-                        onClick={() => onEventClick?.(e, day.date)}
-                        title={e.title}
-                        type="button"
-                      >
-                        {e.title}
-                      </button>
-                    ))}
+                    .map((e) => {
+                      const hidden =
+                        allDayEventDraft?.event.id === e.id &&
+                        allDayEventDraft.sourceDate === day.key;
+                      return (
+                        <button
+                          className={cn(
+                            "block w-full truncate rounded-full bg-surface-container-high px-2 text-left text-[10px] font-medium text-on-surface transition-colors hover:bg-surface-container-highest",
+                            moveEnabled && !e.recurrenceType && "cursor-grab touch-none active:cursor-grabbing",
+                            hidden && "pointer-events-none opacity-0",
+                          )}
+                          key={e.id}
+                          onClick={(clickEvent) => {
+                            if (clickEvent.detail === 0 || !movedRef.current) onEventClick?.(e, day.date);
+                          }}
+                          onPointerDown={
+                            moveEnabled && !e.recurrenceType
+                              ? (pointerEvent) => startAllDayEventDrag(pointerEvent, e, day.date)
+                              : undefined
+                          }
+                          title={e.title}
+                          type="button"
+                        >
+                          {e.title}
+                        </button>
+                      );
+                    })}
                 </div>
               </div>
               );
@@ -1023,19 +1136,34 @@ export function TimeBlockWeekGrid({
                 </p>
               </div>
             )}
-            {eventDraft && renderEventBlock(
-              eventDraft.event,
+            {timedEventDraft && renderEventBlock(
+              timedEventDraft.event,
               undefined,
-              parseDateOnly(eventDraft.draggedDate),
+              parseDateOnly(timedEventDraft.draggedDate),
               false,
               {
-                left: eventDraft.left,
-                width: eventDraft.width,
+                left: timedEventDraft.left,
+                width: timedEventDraft.width,
                 top: eventDraftTop,
                 height: eventDraftHeight,
-                startMin: eventDraft.startMin,
-                endMin: eventDraft.endMin,
+                startMin: timedEventDraft.startMin,
+                endMin: timedEventDraft.endMin,
               },
+            )}
+            {allDayEventDraft && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute z-50 truncate rounded-full border border-outline-variant px-2 py-0.5 text-left text-[10px] font-medium text-on-surface shadow-cadence-1"
+                style={{
+                  left: allDayEventDraft.left,
+                  width: allDayEventDraft.width,
+                  top: allDayEventDraft.top,
+                  height: allDayEventDraft.height,
+                  backgroundColor: "var(--surface-container-high)",
+                }}
+              >
+                {allDayEventDraft.event.title}
+              </div>
             )}
           </div>
         </div>

@@ -180,6 +180,7 @@ function TimeBlocksContent() {
   const [entryChooserOpen, setEntryChooserOpen] = useState(false);
   const [entrySlot, setEntrySlot] = useState<SlotPrefill | null>(null);
   const [previewingEvent, setPreviewingEvent] = useState<CalendarEvent | null>(null);
+  const [previewEventDate, setPreviewEventDate] = useState<Date | null>(null);
   const [dayTaskDate, setDayTaskDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const creatingEntryRef = useRef(false);
@@ -446,10 +447,11 @@ function TimeBlocksContent() {
     setResolveDraft(null);
   };
 
-  const openEventPreview = (event: CalendarEvent) => {
+  const openEventPreview = (event: CalendarEvent, date?: Date) => {
     setPreviewingBlock(null);
     setPreviewBlockDate(null);
     setPreviewingEvent(event);
+    setPreviewEventDate(date ?? parseDateOnly(event.date));
   };
 
   const shiftMobileDate = (amount: number) => {
@@ -499,9 +501,22 @@ function TimeBlocksContent() {
     event: CalendarEvent,
     sourceDate: Date,
     targetDate: Date,
-    startMin: number,
-    endMin: number,
+    startMin: number | null,
+    endMin: number | null,
   ) => {
+    if (event.allDay) {
+      try {
+        await eventMutations.updateEvent.mutateAsync({
+          id: event.id,
+          payload: { allDay: true, date: toISODateString(targetDate) },
+        });
+        toast.success("Evento movido");
+      } catch (err) {
+        toast.error((err as { message?: string })?.message ?? "Ups, no pudimos mover el evento.");
+      }
+      return;
+    }
+    if (startMin === null || endMin === null) return;
     if (event.recurrenceType) {
       setEventMoveStart(minToTime(startMin));
       setEventMoveEnd(minToTime(endMin));
@@ -726,8 +741,12 @@ function TimeBlocksContent() {
       {previewingEvent && (
         <EventPreviewModal
           event={previewingEvent}
-          key={previewingEvent.id}
-          onClose={() => setPreviewingEvent(null)}
+          key={`${previewingEvent.id}-${previewEventDate?.getTime() ?? "event"}`}
+          occurrenceDate={previewEventDate ?? undefined}
+          onClose={() => {
+            setPreviewingEvent(null);
+            setPreviewEventDate(null);
+          }}
         />
       )}
 

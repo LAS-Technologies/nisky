@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Bell, CalendarDays, ExternalLink, MapPin, Pencil, Repeat2, Trash2, Video, X } from "lucide-react";
+import { Bell, CalendarDays, CalendarX, ExternalLink, MapPin, Pencil, Repeat2, RotateCcw, Trash2, Video, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CalendarEvent, EventRecurrenceType } from "@/types/entities";
 import type { CalendarEventPayload } from "@/features/events/api/events";
-import { useEventMutations } from "@/features/events/hooks/useEvents";
+import { useEventExceptionsQuery, useEventMutations } from "@/features/events/hooks/useEvents";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
@@ -55,6 +55,10 @@ type EventDraftField = "title" | "schedule" | "location" | "color" | "recurrence
 
 function eventDate(value: string) {
   return parseDateOnly(value).toLocaleDateString("es-DO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+
+function exceptionDate(value: string) {
+  return parseDateOnly(value).toLocaleDateString("es-DO", { weekday: "short", day: "numeric", month: "short", year: "numeric" }).replaceAll(".", "");
 }
 
 function eventDuration(event: CalendarEvent) {
@@ -229,12 +233,14 @@ function EventScheduleEditor({
 
 export function EventPreviewModal({
   event,
+  occurrenceDate,
   onClose,
 }: {
   event: CalendarEvent;
+  occurrenceDate?: Date;
   onClose: () => void;
 }) {
-  const { deleteEvent, updateEvent } = useEventMutations();
+  const { createException, deleteEvent, deleteException, updateEvent } = useEventMutations();
   const isMobile = useIsMobile(1023);
   const [currentEvent, setCurrentEvent] = useState(event);
   const [titleEditing, setTitleEditing] = useState(false);
@@ -245,10 +251,17 @@ export function EventPreviewModal({
   const [locationDraft, setLocationDraft] = useState(event.location ?? "");
   const [colorOpen, setColorOpen] = useState(false);
   const [pendingField, setPendingField] = useState<EventDraftField | null>(null);
+  const [skipConfirmOpen, setSkipConfirmOpen] = useState(false);
+  const [skipPending, setSkipPending] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [pendingExceptionId, setPendingExceptionId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
   const locationCancelRef = useRef(false);
+  const recurring = Boolean(currentEvent.recurrenceType);
+  const exceptionsQuery = useEventExceptionsQuery(recurring ? currentEvent.id : "");
+  const exceptions = exceptionsQuery.data ?? [];
+  const occurrenceKey = recurring ? toDateKey(occurrenceDate ?? parseDateOnly(currentEvent.date)) : null;
 
   useEffect(() => {
     if (!titleEditing || !titleInputRef.current) return;
@@ -387,6 +400,37 @@ export function EventPreviewModal({
       onClose();
     } catch (error) {
       toast.error((error as { message?: string } | null)?.message ?? "No pudimos eliminar el evento.");
+    }
+  };
+
+  const confirmSkip = async () => {
+    if (!occurrenceKey || skipPending) return;
+    setSkipPending(true);
+    try {
+      await createException.mutateAsync({
+        eventId: currentEvent.id,
+        payload: { date: occurrenceKey, action: "skip" },
+      });
+      toast.success("Evento saltado ese día");
+      setSkipConfirmOpen(false);
+      onClose();
+    } catch (error) {
+      toast.error((error as { message?: string } | null)?.message ?? "No pudimos saltar el evento.");
+    } finally {
+      setSkipPending(false);
+    }
+  };
+
+  const restoreException = async (exceptionId: string) => {
+    if (pendingExceptionId) return;
+    setPendingExceptionId(exceptionId);
+    try {
+      await deleteException.mutateAsync({ eventId: currentEvent.id, exceptionId });
+      toast.success("Excepción eliminada; día restaurado");
+    } catch (error) {
+      toast.error((error as { message?: string } | null)?.message ?? "No pudimos restaurar el día.");
+    } finally {
+      setPendingExceptionId(null);
     }
   };
 
@@ -655,6 +699,13 @@ export function EventPreviewModal({
               </Select>
             </DetailRow>
 
+            {occurrenceDate && recurring && (
+              <DetailRow divided icon={CalendarDays}>
+                <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">Ocurrencia seleccionada</p>
+                <p className="mt-0.5 capitalize font-body-md text-body-md font-semibold text-on-surface">{eventDate(occurrenceKey ?? currentEvent.date)}</p>
+              </DetailRow>
+            )}
+
             <DetailRow divided icon={Bell}>
               <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">Recordatorio</p>
               <Select disabled={pendingField !== null} onValueChange={(value) => void saveReminder(Number(value))} value={String(currentEvent.remindBeforeMin)}>
@@ -670,8 +721,74 @@ export function EventPreviewModal({
             </DetailRow>
           </div>
         </section>
-      </div>
+
+        {recurring && exceptions.length > 0 && (
+          <section className="overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface-container-low/70 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">Excepciones</p>
+                <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">Restaura los días que quitaste de este evento.</p>
+              </div>
+              <Badge variant="neutral">{exceptions.length}</Badge>
+            </div>
+            <ul className="mt-3 divide-y divide-outline-variant/70">
+              {exceptions.map((exception) => (
+                <li className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={exception.id}>
+                  <div className="min-w-0">
+                    <p className="truncate font-body-sm text-body-sm font-semibold capitalize text-on-surface">{exceptionDate(exception.date)}</p>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      {exception.action === "skip" ? "Día saltado" : "Horario cambiado ese día"}
+                    </p>
+                  </div>
+                  <Button
+                    aria-label={`Restaurar ${exceptionDate(exception.date)}`}
+                    className="shrink-0 rounded-lg px-3 font-label-md text-label-md text-on-surface-variant"
+                    disabled={pendingExceptionId !== null}
+                    onClick={() => void restoreException(exception.id)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <RotateCcw aria-hidden="true" size={14} /> Restaurar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {occurrenceKey && recurring && (
+          <section className="border-t border-outline-variant pt-4">
+            <Button
+              className="min-h-11 w-full justify-center rounded-xl border-error/40 font-label-md text-label-md font-semibold text-error hover:bg-error-container/30"
+              disabled={pendingField !== null || skipPending}
+              onClick={() => setSkipConfirmOpen(true)}
+              type="button"
+              variant="outline"
+            >
+              <CalendarX aria-hidden="true" size={16} /> Saltar este día
+            </Button>
+            <p className="mt-2 text-center font-body-sm text-body-sm text-on-surface-variant">
+              No se notificará el {eventDate(occurrenceKey)}.
+            </p>
+          </section>
+        )}
+        </div>
       </PreviewSheet>
+
+      {skipConfirmOpen && occurrenceKey && (
+        <ConfirmModal
+          cancelLabel="Cancelar"
+          confirmLabel="Saltar este día"
+          danger
+          loading={skipPending}
+          message={<>¿Saltar el evento «{currentEvent.title}» el {eventDate(occurrenceKey)}? No se notificará ese día.</>}
+          onClose={() => setSkipConfirmOpen(false)}
+          onConfirm={() => void confirmSkip()}
+          title="¿Saltar evento este día?"
+        />
+      )}
+
       {deleteConfirmOpen && (
         <ConfirmModal
           cancelLabel="Cancelar"
