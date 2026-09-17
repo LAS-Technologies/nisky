@@ -80,6 +80,10 @@ export function PatSection() {
           Guía de configuración del MCP
         </a>
       </p>
+      <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+        Para conexiones OAuth con ChatGPT o Gemini Spark, usa esta URL de MCP:{" "}
+        <code className="font-data-mono text-data-mono text-primary">https://mcp-nisky.las.do/mcp</code>
+      </p>
 
       <form className="mt-4 max-w-sm space-y-4" onSubmit={handleSubmit((values) => createMutation.mutate({
         name: values.name,

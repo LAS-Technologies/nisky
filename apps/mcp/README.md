@@ -21,6 +21,12 @@ ChatGPT debe conectarse solamente a:
 https://<tu-host>/mcp
 ```
 
+Para la instancia pública de Nisky, la URL de conexión OAuth es:
+
+```text
+https://mcp-nisky.las.do/mcp
+```
+
 No introduzcas un PAT en ChatGPT. Al detectar el challenge, ChatGPT abrirá el login y consentimiento de Nisky.
 
 ## Tools disponibles (22)
@@ -159,7 +165,7 @@ Configurar la URL del endpoint y el header `Authorization: Bearer <PAT>` como cr
 
 ### 3. Conectar ChatGPT (OAuth)
 
-En ChatGPT activa Developer Mode, crea una conexión a `https://<tu-host>/mcp` y completa el login/consentimiento en Nisky. La URL del Authorization Server debe coincidir con `OAUTH_ISSUER_URL` del backend y el frontend.
+En ChatGPT activa Developer Mode, crea una conexión a `https://mcp-nisky.las.do/mcp` y completa el login/consentimiento en Nisky. Para una instalación propia, sustituye la URL por el host de tu despliegue. La URL del Authorization Server debe coincidir con `OAUTH_ISSUER_URL` del backend y el frontend.
 
 ### 4. Probar (opcional)
 

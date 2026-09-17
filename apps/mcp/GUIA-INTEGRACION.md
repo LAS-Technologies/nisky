@@ -25,7 +25,7 @@ Con esto, tu asistente de IA (opencode, Claude Desktop u otro) podrá:
 
 ### ChatGPT: conexión OAuth
 
-Si usas ChatGPT con Developer Mode, crea una conexión a:
+Si usas ChatGPT con Developer Mode, crea una conexión OAuth a la instancia pública de Nisky usando esta URL:
 
 ```text
 https://mcp-nisky.las.do/mcp
@@ -39,7 +39,9 @@ OAuth concede acceso con scopes y permite revocar la conexión sin exponer una l
 
 Para clientes que todavía requieren headers manuales, continúa con el siguiente paso.
 
-## Paso 2: Obtén tu llave de acceso
+## Paso 2: Obtén tu llave de acceso (solo si usas PAT)
+
+> Si vas a usar OAuth con ChatGPT o Gemini Spark, no necesitas crear un PAT. Configura directamente `https://mcp-nisky.las.do/mcp` como servidor MCP.
 
 Piensa en esto como una llave especial que le das a tu asistente para que entre a *tu* espacio de Nisky.
 
