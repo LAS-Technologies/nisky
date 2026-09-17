@@ -419,12 +419,25 @@ export class ProjectService {
     const { project } = link;
     if (project.userId === userId) return { success: true, projectId: project.id, alreadyMember: true };
 
-    const existingMember = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: project.id, userId } } });
-    if (existingMember) return { success: true, projectId: project.id, alreadyMember: true };
-
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, username: true } });
     if (!user) throw new AppError("NOT_FOUND", "Usuario no encontrado");
-    await prisma.projectMember.create({ data: { projectId: project.id, userId, role: "MEMBER" } });
+
+    const existingMember = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: project.id, userId } } });
+    if (existingMember) {
+      await prisma.projectInvitation.updateMany({
+        where: { projectId: project.id, email: user.email, status: "PENDING" },
+        data: { status: "ACCEPTED" },
+      });
+      return { success: true, projectId: project.id, alreadyMember: true };
+    }
+
+    await prisma.$transaction([
+      prisma.projectMember.create({ data: { projectId: project.id, userId, role: "MEMBER" } }),
+      prisma.projectInvitation.updateMany({
+        where: { projectId: project.id, email: user.email, status: "PENDING" },
+        data: { status: "ACCEPTED" },
+      }),
+    ]);
     await projectActivityService.record({
       projectId: project.id,
       actorId: userId,
@@ -499,6 +512,13 @@ export class ProjectService {
     });
     if (!invitation) throw new AppError("NOT_FOUND", "No hay invitación pendiente");
     const projectId = invitation.projectId;
+
+    const existingMember = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId, userId } } });
+    if (existingMember) {
+      await prisma.projectInvitation.update({ where: { id: invitation.id }, data: { status: "ACCEPTED" } });
+      return { success: true, alreadyMember: true };
+    }
+
     await prisma.$transaction([
       prisma.projectMember.create({ data: { projectId, userId, role: "MEMBER" } }),
       prisma.projectInvitation.update({ where: { id: invitation.id }, data: { status: "ACCEPTED" } }),

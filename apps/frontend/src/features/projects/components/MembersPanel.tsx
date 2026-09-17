@@ -1,7 +1,7 @@
 "use client";
 
 import { AtSign, Ban, Check, Copy, Link2, LogOut, Mail, ShieldCheck, UserMinus, UserRoundPlus, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
@@ -44,6 +44,11 @@ export function MembersPanel({ project }: { project: Project }) {
   const [confirmCancelInvitationId, setConfirmCancelInvitationId] = useState<string | null>(null);
   const [confirmRevokeInviteLinkId, setConfirmRevokeInviteLinkId] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const inviteOrigin = useSyncExternalStore(
+    () => () => {},
+    () => window.location.origin,
+    () => "",
+  );
   const members = membersQuery.data ?? [];
   const pendingInvitations = invitationsQuery.data ?? [];
   const inviteLinks = inviteLinksQuery.data ?? [];
@@ -315,7 +320,7 @@ export function MembersPanel({ project }: { project: Project }) {
                   <div className="rounded-md border border-primary/20 bg-primary-fixed/30 p-2.5" key={link.id}>
                     {link.token ? (
                       <div className="flex flex-col gap-2 sm:flex-row">
-                        <input aria-label="Enlace de invitación" className="field h-9 min-w-0 flex-1 text-xs" readOnly value={`/invite/${encodeURIComponent(link.token)}`} />
+                        <input aria-label="Enlace de invitación" className="field h-9 min-w-0 flex-1 text-xs" readOnly value={`${inviteOrigin}/invite/${encodeURIComponent(link.token)}`} />
                         <div className="flex shrink-0 gap-2">
                           <button
                             aria-label="Copiar enlace de invitación"
