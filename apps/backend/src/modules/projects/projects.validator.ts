@@ -18,6 +18,10 @@ export const invitationIdParamSchema = z.object({ invitationId: z.uuid("La invit
 export const inviteTokenParamSchema = z.object({
   token: z.string().trim().min(20, "El enlace de invitación no es válido").max(160, "El enlace de invitación no es válido"),
 });
+export const inviteLinkIdParamSchema = z.object({
+  projectId: z.uuid("El proyecto no es válido"),
+  linkId: z.uuid("El enlace de invitación no es válido"),
+});
 export const memberIdParamSchema = z.object({
   projectId: z.uuid("El proyecto no es válido"),
   memberId: z.uuid("El miembro no es válido"),

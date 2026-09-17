@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { Project, ProjectInvitation, ProjectInvitePreview, ProjectMember, ProjectRole, User } from "@/types/entities";
+import type { Project, ProjectInvitation, ProjectInviteLink, ProjectInvitePreview, ProjectMember, ProjectRole, User } from "@/types/entities";
 
 export async function getProjects() {
   const { data } = await api.get<{ data: Project[] }>("/projects");
@@ -63,6 +63,16 @@ export async function inviteProjectMember(projectId: string, identifier: string)
 
 export async function createProjectInviteLink(projectId: string) {
   const { data } = await api.post<{ data: { id: string; token: string; createdAt: string } }>(`/projects/${projectId}/invite-links`);
+  return data.data;
+}
+
+export async function getProjectInviteLinks(projectId: string) {
+  const { data } = await api.get<{ data: ProjectInviteLink[] }>(`/projects/${projectId}/invite-links`);
+  return data.data;
+}
+
+export async function revokeProjectInviteLink(projectId: string, linkId: string) {
+  const { data } = await api.delete<{ data: { success: boolean; id: string } }>(`/projects/${projectId}/invite-links/${linkId}`);
   return data.data;
 }
 

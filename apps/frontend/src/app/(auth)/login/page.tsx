@@ -11,18 +11,20 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { useLogin } from "@/features/auth/hooks/useLogin";
 import { usePublicConfigQuery } from "@/features/auth/hooks/useAuthConfig";
+import { authSwitchHref, safeInternalRedirect } from "@/features/auth/lib/redirect";
 import { loginSchema, type LoginFormData } from "@/features/auth/schemas/auth.schema";
 import type { ApiError } from "@/types/api.types";
 
 export default function LoginPage() {
   const { setAuth } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
+  const [authRedirect, setAuthRedirect] = useState<string | null>(null);
   const config = usePublicConfigQuery();
   const { mutate, isPending, error } = useLogin((result) => {
     setAuth(result);
     toast.success("¡Qué bueno verte de nuevo!");
     const requestedRedirect = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("redirect");
-    const redirect = requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//") && !requestedRedirect.includes("\\") ? requestedRedirect : "/";
+    const redirect = safeInternalRedirect(requestedRedirect) ?? "/";
     // A full navigation makes the browser send the new refresh cookie and
     // forces the protected tree to restore the session on its first render.
     window.location.replace(redirect);
@@ -30,8 +32,11 @@ export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
 
   useEffect(() => {
-    // Do not allow the browser's native submit to run before React owns the form.
+    const requestedRedirect = new URLSearchParams(window.location.search).get("redirect");
+    // Keep the original destination when switching between login and register.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAuthRedirect(safeInternalRedirect(requestedRedirect));
+    // Do not allow the browser's native submit to run before React owns the form.
     setIsHydrated(true);
   }, []);
 
@@ -67,7 +72,7 @@ export default function LoginPage() {
           <div className="mt-7 border-t border-outline-variant pt-5">
             <p className="font-body-sm text-body-sm text-on-surface-variant">
               ¿Primera vez en Nisky?{" "}
-              <Link className="font-medium text-secondary underline underline-offset-4 hover:text-primary" href="/register">Crear cuenta</Link>
+              <Link className="font-medium text-secondary underline underline-offset-4 hover:text-primary" href={authSwitchHref("/register", authRedirect)}>Crear cuenta</Link>
             </p>
           </div>
         )}

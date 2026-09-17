@@ -9,6 +9,7 @@ import {
   getAccessibleProjects,
   getPendingInvitations,
   getProject,
+  getProjectInviteLinks,
   getProjectInvitations,
   getProjectMembers,
   getProjects,
@@ -16,6 +17,7 @@ import {
   leaveProject,
   removeAvatar,
   removeProjectMember,
+  revokeProjectInviteLink,
   setDefaultProject,
   updateProject,
   updateProjectMemberRole,
@@ -58,6 +60,14 @@ export function useProjectInvitations(projectId: string | null) {
   });
 }
 
+export function useProjectInviteLinks(projectId: string | null) {
+  return useQuery({
+    queryKey: ["projects", projectId, "invite-links"],
+    queryFn: () => getProjectInviteLinks(projectId as string),
+    enabled: Boolean(projectId),
+  });
+}
+
 export function usePendingInvitations() {
   return useQuery({
     queryKey: ["invitations", "pending"],
@@ -71,6 +81,7 @@ export function useProjectMemberMutations(projectId: string) {
   const invalidate = async () => {
     await client.invalidateQueries({ queryKey: ["projects", projectId, "members"] });
     await client.invalidateQueries({ queryKey: ["projects", projectId, "invitations"] });
+    await client.invalidateQueries({ queryKey: ["projects", projectId, "invite-links"] });
     await client.invalidateQueries({ queryKey: ["projects", projectId, "summary"] });
     await client.invalidateQueries({ queryKey: ["projects", projectId, "activity"] });
     await client.invalidateQueries({ queryKey: ["invitations", "pending"] });
@@ -81,7 +92,11 @@ export function useProjectMemberMutations(projectId: string) {
     mutationFn: (identifier: string) => inviteProjectMember(projectId, identifier),
     onSuccess: invalidate,
   });
-  const createInviteLink = useMutation({ mutationFn: () => createProjectInviteLink(projectId) });
+  const createInviteLink = useMutation({ mutationFn: () => createProjectInviteLink(projectId), onSuccess: invalidate });
+  const revokeInviteLink = useMutation({
+    mutationFn: ({ linkId }: { linkId: string }) => revokeProjectInviteLink(projectId, linkId),
+    onSuccess: invalidate,
+  });
   const remove = useMutation({
     mutationFn: (memberId: string) => removeProjectMember(projectId, memberId),
     onSuccess: invalidate,
@@ -94,7 +109,7 @@ export function useProjectMemberMutations(projectId: string) {
     mutationFn: cancelInvitation,
     onSuccess: invalidate,
   });
-  return { invite, createInviteLink, remove, updateRole, cancel };
+  return { invite, createInviteLink, revokeInviteLink, remove, updateRole, cancel };
 }
 
 export function useInvitationMutations() {

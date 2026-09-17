@@ -4,7 +4,7 @@ import { validateBody, validateParams, validateQuery } from "../../middlewares/v
 import { ProjectController } from "./projects.controller";
 import {
   createProjectSchema, idParamSchema, invitationIdParamSchema, inviteMemberSchema, memberIdParamSchema,
-  inviteTokenParamSchema, projectActivityQuerySchema, projectIdParamSchema, resourceIdParamSchema, createResourceSchema, updateProjectSchema, updateMemberRoleSchema,
+  inviteLinkIdParamSchema, inviteTokenParamSchema, projectActivityQuerySchema, projectIdParamSchema, resourceIdParamSchema, createResourceSchema, updateProjectSchema, updateMemberRoleSchema,
 } from "./projects.validator";
 
 const router = Router();
@@ -30,7 +30,9 @@ router.delete("/:id", write, validateParams(idParamSchema), controller.delete);
 router.get("/:projectId/members", read, validateParams(projectIdParamSchema), controller.listMembers);
 router.get("/:projectId/invitations", read, validateParams(projectIdParamSchema), controller.listProjectInvitations);
 router.post("/:projectId/invitations", write, validateParams(projectIdParamSchema), validateBody(inviteMemberSchema), controller.inviteMember);
+router.get("/:projectId/invite-links", read, validateParams(projectIdParamSchema), controller.listInviteLinks);
 router.post("/:projectId/invite-links", write, validateParams(projectIdParamSchema), controller.createInviteLink);
+router.delete("/:projectId/invite-links/:linkId", write, validateParams(inviteLinkIdParamSchema), controller.revokeInviteLink);
 router.post("/invite-links/:token/accept", write, validateParams(inviteTokenParamSchema), controller.acceptInviteLink);
 router.delete("/:projectId/members/:memberId", write, validateParams(memberIdParamSchema), controller.removeMember);
 router.patch("/:projectId/members/:memberId/role", write, validateParams(memberIdParamSchema), validateBody(updateMemberRoleSchema), controller.updateMemberRole);

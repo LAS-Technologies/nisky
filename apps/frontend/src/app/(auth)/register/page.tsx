@@ -11,23 +11,28 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { useRegister } from "@/features/auth/hooks/useRegister";
 import { usePublicConfigQuery } from "@/features/auth/hooks/useAuthConfig";
+import { authSwitchHref, safeInternalRedirect } from "@/features/auth/lib/redirect";
 import { registerSchema, type RegisterFormData } from "@/features/auth/schemas/auth.schema";
 
 export default function RegisterPage() {
   const { setAuth } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
+  const [authRedirect, setAuthRedirect] = useState<string | null>(null);
   const config = usePublicConfigQuery();
   const { mutate, isPending, error } = useRegister((result) => {
     setAuth(result);
     toast.success("¡Tu cuenta está lista! Empecemos.");
     const requestedRedirect = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("redirect");
-    const redirect = requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//") && !requestedRedirect.includes("\\") ? requestedRedirect : "/";
+    const redirect = safeInternalRedirect(requestedRedirect) ?? "/";
     window.location.replace(redirect);
   });
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema) });
   useEffect(() => {
-    // Do not allow the browser's native submit to run before React owns the form.
+    const requestedRedirect = new URLSearchParams(window.location.search).get("redirect");
+    // Keep the original destination when switching between login and register.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAuthRedirect(safeInternalRedirect(requestedRedirect));
+    // Do not allow the browser's native submit to run before React owns the form.
     setIsHydrated(true);
   }, []);
   return (
@@ -45,7 +50,7 @@ export default function RegisterPage() {
             <p className="font-label-caps text-label-caps text-secondary">NISKY / REGISTRO</p>
             <h1 className="mt-2 font-headline-lg text-headline-lg text-on-surface">Cuentas nuevas pausadas</h1>
             <p className="mt-2 font-body-md text-body-md text-on-surface-variant">Por ahora no aceptamos cuentas nuevas.</p>
-            <Link className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-md border border-outline-variant px-4 font-body-md text-body-md font-medium text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface" href="/login">
+            <Link className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-md border border-outline-variant px-4 font-body-md text-body-md font-medium text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface" href={authSwitchHref("/login", authRedirect)}>
               Volver a iniciar sesión
             </Link>
           </>
@@ -86,7 +91,7 @@ export default function RegisterPage() {
             <div className="mt-7 border-t border-outline-variant pt-5">
               <p className="font-body-sm text-body-sm text-on-surface-variant">
                 ¿Ya tienes cuenta?{" "}
-                <Link className="font-medium text-secondary underline underline-offset-4 hover:text-primary" href="/login">Iniciar sesión</Link>
+                <Link className="font-medium text-secondary underline underline-offset-4 hover:text-primary" href={authSwitchHref("/login", authRedirect)}>Iniciar sesión</Link>
               </p>
             </div>
           </>

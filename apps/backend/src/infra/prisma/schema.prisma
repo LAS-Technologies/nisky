@@ -138,6 +138,9 @@ model ProjectInviteLink {
   createdById String
   createdBy   User     @relation("UserCreatedProjectInviteLinks", fields: [createdById], references: [id], onDelete: Cascade)
   tokenHash   String   @unique
+  tokenCipher String?
+  tokenIv     String?
+  tokenAuthTag String?
   revokedAt   DateTime?
   createdAt   DateTime @default(now())
 

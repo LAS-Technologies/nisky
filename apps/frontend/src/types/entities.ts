@@ -105,6 +105,13 @@ export interface ProjectInvitePreview {
   project: Pick<Project, "id" | "name" | "description" | "color" | "isDefault">;
 }
 
+export interface ProjectInviteLink {
+  id: string;
+  token: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
 export interface TimeBlock {
   id: string;
   userId: string;

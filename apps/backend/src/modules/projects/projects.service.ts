@@ -2,6 +2,7 @@ import type { Prisma } from "../../infra/prisma/generated/prisma/client";
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../../infra/prisma/client";
 import { AppError } from "../../utils/errors/handler";
+import { decryptSecret, encryptSecret } from "../../utils/secrets";
 import { pushService } from "../push/push.service";
 import { assertProjectAccess, assertProjectOwner, getProjectAudience, getUserRoleInProject } from "./access";
 import { projectActivityService } from "./project-activity.service";
@@ -16,6 +17,15 @@ function hashInviteToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+function decryptInviteToken(link: { tokenCipher: string | null; tokenIv: string | null; tokenAuthTag: string | null }) {
+  if (!link.tokenCipher || !link.tokenIv || !link.tokenAuthTag) return null;
+  try {
+    return decryptSecret(link.tokenCipher, link.tokenIv, link.tokenAuthTag);
+  } catch {
+    return null;
+  }
+}
+
 function projectDate(value: string | null | undefined) {
   if (value === undefined || value === null) return value;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T12:00:00.000Z`);
@@ -24,6 +34,13 @@ function projectDate(value: string | null | undefined) {
 
 export class ProjectService {
   private defaultCache = new Map<string, string | null>();
+
+  private async shareableProject(userId: string, projectId: string) {
+    const project = await prisma.project.findFirst({ where: { id: projectId, userId }, select: { id: true, isDefault: true } });
+    if (!project) throw new AppError("NOT_FOUND", "Proyecto no encontrado");
+    if (project.isDefault) throw new AppError("FORBIDDEN", "El proyecto por defecto no se puede compartir");
+    return project;
+  }
 
   async list(userId: string) {
     const merged = await this.listUserProjects(userId);
@@ -334,16 +351,50 @@ export class ProjectService {
   }
 
   async createInviteLink(userId: string, projectId: string) {
-    const project = await prisma.project.findFirst({ where: { id: projectId, userId }, select: { id: true, isDefault: true } });
-    if (!project) throw new AppError("NOT_FOUND", "Proyecto no encontrado");
-    if (project.isDefault) throw new AppError("FORBIDDEN", "El proyecto por defecto no se puede compartir");
+    const project = await this.shareableProject(userId, projectId);
 
     const token = `${PROJECT_INVITE_PREFIX}${randomBytes(32).toString("base64url")}`;
+    const encrypted = encryptSecret(token);
     const link = await prisma.projectInviteLink.create({
-      data: { projectId, createdById: userId, tokenHash: hashInviteToken(token) },
+      data: {
+        projectId,
+        createdById: userId,
+        tokenHash: hashInviteToken(token),
+        tokenCipher: encrypted.cipher,
+        tokenIv: encrypted.iv,
+        tokenAuthTag: encrypted.authTag,
+      },
       select: { id: true, createdAt: true },
     });
     return { ...link, token };
+  }
+
+  async listInviteLinks(userId: string, projectId: string) {
+    await this.shareableProject(userId, projectId);
+    const links = await prisma.projectInviteLink.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, tokenCipher: true, tokenIv: true, tokenAuthTag: true, revokedAt: true, createdAt: true },
+    });
+    return links.map((link) => ({
+      id: link.id,
+      token: link.revokedAt ? null : decryptInviteToken(link),
+      revokedAt: link.revokedAt,
+      createdAt: link.createdAt,
+    }));
+  }
+
+  async revokeInviteLink(userId: string, projectId: string, linkId: string) {
+    await this.shareableProject(userId, projectId);
+    const result = await prisma.projectInviteLink.updateMany({
+      where: { id: linkId, projectId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (result.count === 0) {
+      const link = await prisma.projectInviteLink.findFirst({ where: { id: linkId, projectId }, select: { id: true } });
+      if (!link) throw new AppError("NOT_FOUND", "Enlace de invitación no encontrado");
+    }
+    return { success: true, id: linkId };
   }
 
   async getInviteLink(token: string) {

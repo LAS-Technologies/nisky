@@ -10,6 +10,7 @@ type ProjectIdParams = { projectId: string };
 type MemberIdParams = { projectId: string; memberId: string };
 type InvitationIdParams = { invitationId: string };
 type InviteTokenParams = { token: string };
+type InviteLinkParams = { projectId: string; linkId: string };
 type ResourceIdParams = { projectId: string; resourceId: string };
 
 function userId(req: Request) {
@@ -64,6 +65,14 @@ export class ProjectController {
 
   createInviteLink = async (req: Request<ProjectIdParams>, res: Response, next: NextFunction) => {
     try { res.success(await projectService.createInviteLink(userId(req), req.params.projectId), 201); } catch (error) { next(error); }
+  };
+
+  listInviteLinks = async (req: Request<ProjectIdParams>, res: Response, next: NextFunction) => {
+    try { res.success(await projectService.listInviteLinks(userId(req), req.params.projectId)); } catch (error) { next(error); }
+  };
+
+  revokeInviteLink = async (req: Request<InviteLinkParams>, res: Response, next: NextFunction) => {
+    try { res.success(await projectService.revokeInviteLink(userId(req), req.params.projectId, req.params.linkId)); } catch (error) { next(error); }
   };
 
   getInviteLink = async (req: Request<InviteTokenParams>, res: Response, next: NextFunction) => {

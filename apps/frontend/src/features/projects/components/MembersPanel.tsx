@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, Check, Copy, Link2, LogOut, Mail, ShieldCheck, UserMinus, UserRoundPlus, X } from "lucide-react";
+import { AtSign, Ban, Check, Copy, Link2, LogOut, Mail, ShieldCheck, UserMinus, UserRoundPlus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -8,8 +8,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useAuth } from "@/context/AuthProvider";
 import { cn } from "@/lib/utils";
-import type { Project } from "@/types/entities";
-import { useLeaveProjectMutation, useProjectInvitations, useProjectMemberMutations, useProjectMembers } from "../hooks/useProjects";
+import type { Project, ProjectInviteLink } from "@/types/entities";
+import { useLeaveProjectMutation, useProjectInviteLinks, useProjectInvitations, useProjectMemberMutations, useProjectMembers } from "../hooks/useProjects";
 
 function MembersSkeleton() {
   return (
@@ -30,24 +30,28 @@ function MembersSkeleton() {
 export function MembersPanel({ project }: { project: Project }) {
   const { user } = useAuth();
   const router = useRouter();
+  const isOwner = user?.id === project.userId;
+  const canManageMembers = isOwner && !project.isDefault;
   const membersQuery = useProjectMembers(project.id);
   const invitationsQuery = useProjectInvitations(project.id);
+  const inviteLinksQuery = useProjectInviteLinks(canManageMembers ? project.id : null);
   const mutations = useProjectMemberMutations(project.id);
   const leaveMutation = useLeaveProjectMutation();
   const [email, setEmail] = useState("");
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [confirmTransferId, setConfirmTransferId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [confirmCancelInvitationId, setConfirmCancelInvitationId] = useState<string | null>(null);
+  const [confirmRevokeInviteLinkId, setConfirmRevokeInviteLinkId] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const isOwner = user?.id === project.userId;
-  const canManageMembers = isOwner && !project.isDefault;
   const members = membersQuery.data ?? [];
   const pendingInvitations = invitationsQuery.data ?? [];
+  const inviteLinks = inviteLinksQuery.data ?? [];
+  const activeInviteLinks = inviteLinks.filter((link) => !link.revokedAt);
   const transferTarget = members.find((member) => member.id === confirmTransferId) ?? null;
   const removeTarget = members.find((member) => member.id === confirmRemoveId) ?? null;
   const cancelTarget = pendingInvitations.find((invitation) => invitation.id === confirmCancelInvitationId) ?? null;
+  const revokeTarget = inviteLinks.find((link) => link.id === confirmRevokeInviteLinkId) ?? null;
 
   const invite = async () => {
     const trimmed = email.trim();
@@ -65,21 +69,34 @@ export function MembersPanel({ project }: { project: Project }) {
     try {
       const result = await mutations.createInviteLink.mutateAsync();
       const url = `${window.location.origin}/invite/${encodeURIComponent(result.token)}`;
-      setInviteLink(url);
-      setLinkCopied(false);
       await navigator.clipboard?.writeText(url);
-      setLinkCopied(true);
+      setCopiedLinkId(result.id);
       toast.success("Enlace creado y copiado");
     } catch (error) {
       toast.error((error as { message?: string })?.message ?? "Ups, no pudimos crear el enlace.");
     }
   };
 
-  const copyInviteLink = async () => {
-    if (!inviteLink) return;
-    await navigator.clipboard?.writeText(inviteLink);
-    setLinkCopied(true);
+  const copyInviteLink = async (link: ProjectInviteLink) => {
+    if (!link.token) {
+      toast.error("Este enlace fue creado con una versión anterior. Crea uno nuevo para poder copiarlo.");
+      return;
+    }
+    const url = `${window.location.origin}/invite/${encodeURIComponent(link.token)}`;
+    await navigator.clipboard?.writeText(url);
+    setCopiedLinkId(link.id);
     toast.success("Enlace copiado");
+  };
+
+  const revokeInviteLink = async (linkId: string) => {
+    try {
+      await mutations.revokeInviteLink.mutateAsync({ linkId });
+      setConfirmRevokeInviteLinkId(null);
+      setCopiedLinkId(null);
+      toast.success("Enlace revocado");
+    } catch (error) {
+      toast.error((error as { message?: string })?.message ?? "Ups, no pudimos revocar el enlace.");
+    }
   };
 
   const remove = async (memberId: string) => {
@@ -241,53 +258,100 @@ export function MembersPanel({ project }: { project: Project }) {
       )}
 
       {canManageMembers ? (
-        <div className="space-y-2 pt-1">
-          <div className="flex gap-2">
-          <div className="relative min-w-0 flex-1">
-            <AtSign size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-            <input
-              aria-label="Email o @usuario del nuevo miembro"
-              className="field h-9 w-full pl-8"
-              onChange={(event) => setEmail(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void invite();
-              }}
-              placeholder="email@ejemplo.com o @usuario"
-              type="text"
-              value={email}
-            />
+        <div className="space-y-4 border-t border-outline-variant pt-4">
+          <div className="space-y-2">
+            <p className="font-label-caps text-label-caps text-on-surface-variant">INVITAR A UNA PERSONA</p>
+            <div className="flex gap-2">
+              <div className="relative min-w-0 flex-1">
+                <AtSign size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+                <input
+                  aria-label="Email o @usuario del nuevo miembro"
+                  className="field h-9 w-full pl-8"
+                  onChange={(event) => setEmail(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void invite();
+                  }}
+                  placeholder="email@ejemplo.com o @usuario"
+                  type="text"
+                  value={email}
+                />
+              </div>
+              <button
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high disabled:opacity-50"
+                disabled={!email.trim()}
+                onClick={() => void invite()}
+                type="button"
+              >
+                <Mail size={15} /> Invitar
+              </button>
+            </div>
           </div>
-          <button
-            className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high disabled:opacity-50"
-            disabled={!email.trim()}
-            onClick={() => void invite()}
-            type="button"
-          >
-            <Mail size={15} /> Invitar
-          </button>
+
+          <div aria-label="O crear un enlace de invitación" className="flex items-center gap-3" role="separator">
+            <span aria-hidden="true" className="h-px flex-1 bg-outline-variant" />
+            <span className="font-label-caps text-label-caps text-on-surface-variant">O</span>
+            <span aria-hidden="true" className="h-px flex-1 bg-outline-variant" />
           </div>
-          <button
-            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high disabled:opacity-50"
-            disabled={mutations.createInviteLink.isPending}
-            onClick={() => void createInviteLink()}
-            type="button"
-          >
-            <Link2 size={15} /> {mutations.createInviteLink.isPending ? "Creando enlace..." : "Crear enlace de invitación"}
-          </button>
-          {inviteLink && (
-            <div className="rounded-md border border-primary/20 bg-primary-fixed/30 p-2.5">
-              <p className="mb-1.5 font-label-caps text-label-caps text-primary">ENLACE DE INVITACIÓN</p>
-              <div className="flex gap-2">
-                <input aria-label="Enlace de invitación" className="field h-9 min-w-0 flex-1 text-xs" readOnly value={inviteLink} />
-                <button
-                  aria-label="Copiar enlace de invitación"
-                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high"
-                  onClick={() => void copyInviteLink()}
-                  type="button"
-                >
-                  {linkCopied ? <Check size={15} /> : <Copy size={15} />}
-                  <span className="hidden sm:inline">{linkCopied ? "Copiado" : "Copiar"}</span>
-                </button>
+
+          <div className="space-y-2">
+            <p className="font-label-caps text-label-caps text-on-surface-variant">INVITAR CON ENLACE</p>
+            <button
+              className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm font-medium text-primary hover:bg-surface-container-high disabled:opacity-50"
+              disabled={mutations.createInviteLink.isPending}
+              onClick={() => void createInviteLink()}
+              type="button"
+            >
+              <Link2 size={15} /> {mutations.createInviteLink.isPending ? "Creando enlace..." : "Crear enlace de invitación"}
+            </button>
+          </div>
+
+          {inviteLinksQuery.isLoading ? (
+            <p className="font-body-xs text-body-xs text-on-surface-variant">Cargando enlaces activos...</p>
+          ) : activeInviteLinks.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-label-caps text-label-caps text-on-surface-variant">ENLACES ACTIVOS ({activeInviteLinks.length})</p>
+              <div className="space-y-2">
+                {activeInviteLinks.map((link) => (
+                  <div className="rounded-md border border-primary/20 bg-primary-fixed/30 p-2.5" key={link.id}>
+                    {link.token ? (
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <input aria-label="Enlace de invitación" className="field h-9 min-w-0 flex-1 text-xs" readOnly value={`/invite/${encodeURIComponent(link.token)}`} />
+                        <div className="flex shrink-0 gap-2">
+                          <button
+                            aria-label="Copiar enlace de invitación"
+                            className="flex h-9 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high"
+                            onClick={() => void copyInviteLink(link)}
+                            type="button"
+                          >
+                            {copiedLinkId === link.id ? <Check size={15} /> : <Copy size={15} />}
+                            <span>{copiedLinkId === link.id ? "Copiado" : "Copiar"}</span>
+                          </button>
+                          <button
+                            aria-label="Revocar enlace de invitación"
+                            className="flex h-9 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-error hover:bg-surface-container-high"
+                            onClick={() => setConfirmRevokeInviteLinkId(link.id)}
+                            type="button"
+                          >
+                            <Ban size={15} /> <span>Revocar</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="min-w-0 flex-1 text-[12px] leading-4 text-on-surface-variant">Este enlace anterior ya no se puede mostrar. Crea uno nuevo para compartirlo.</p>
+                        <button
+                          aria-label="Revocar enlace anterior"
+                          className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-error hover:bg-surface-container-high"
+                          onClick={() => setConfirmRevokeInviteLinkId(link.id)}
+                          type="button"
+                        >
+                          <Ban size={15} /> <span className="hidden sm:inline">Revocar</span>
+                        </button>
+                      </div>
+                    )}
+                    <p className="mt-1.5 font-data-mono text-data-mono text-[10px] text-on-surface-variant">Creado el {new Date(link.createdAt).toLocaleDateString("es-DO")}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -366,6 +430,18 @@ export function MembersPanel({ project }: { project: Project }) {
           onClose={() => setConfirmCancelInvitationId(null)}
           onConfirm={() => void cancelPendingInvitation(cancelTarget.id)}
           title="¿Cancelar invitación?"
+        />
+      )}
+
+      {confirmRevokeInviteLinkId && revokeTarget && (
+        <ConfirmModal
+          confirmLabel="Revocar enlace"
+          danger
+          loading={mutations.revokeInviteLink.isPending}
+          message={<>Cualquier persona que tenga este enlace dejará de poder unirse a <strong>{project.name}</strong>. Podrás crear otro cuando quieras.</>}
+          onClose={() => setConfirmRevokeInviteLinkId(null)}
+          onConfirm={() => void revokeInviteLink(revokeTarget.id)}
+          title="¿Revocar enlace de invitación?"
         />
       )}
     </div>
