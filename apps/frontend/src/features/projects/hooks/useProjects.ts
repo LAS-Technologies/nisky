@@ -3,6 +3,7 @@ import {
   acceptInvitation,
   cancelInvitation,
   createProject,
+  createProjectInviteLink,
   declineInvitation,
   deleteProject,
   getAccessibleProjects,
@@ -80,6 +81,7 @@ export function useProjectMemberMutations(projectId: string) {
     mutationFn: (identifier: string) => inviteProjectMember(projectId, identifier),
     onSuccess: invalidate,
   });
+  const createInviteLink = useMutation({ mutationFn: () => createProjectInviteLink(projectId) });
   const remove = useMutation({
     mutationFn: (memberId: string) => removeProjectMember(projectId, memberId),
     onSuccess: invalidate,
@@ -92,7 +94,7 @@ export function useProjectMemberMutations(projectId: string) {
     mutationFn: cancelInvitation,
     onSuccess: invalidate,
   });
-  return { invite, remove, updateRole, cancel };
+  return { invite, createInviteLink, remove, updateRole, cancel };
 }
 
 export function useInvitationMutations() {

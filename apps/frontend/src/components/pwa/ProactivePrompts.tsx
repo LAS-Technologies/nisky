@@ -33,7 +33,12 @@ export function ProactivePrompts() {
   const { isSubscribed, subscribe } = usePushSubscription();
   const router = useRouter();
   const pathname = usePathname();
-  const isAuthPage = pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth/");
+  const isPromptSuppressedPage =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname.startsWith("/auth/") ||
+    pathname === "/oauth" ||
+    pathname.startsWith("/oauth/");
   const [notifVisible, setNotifVisible] = useState(false);
   const [notifBlocked, setNotifBlocked] = useState(false);
   const [notifGranted, setNotifGranted] = useState(false);
@@ -47,7 +52,7 @@ export function ProactivePrompts() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isAuthPage) return;
+    if (isPromptSuppressedPage) return;
     isStandalone.current =
       window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -97,7 +102,19 @@ export function ProactivePrompts() {
       window.removeEventListener("appinstalled", onInstalled);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthPage, isSubscribed]);
+  }, [isPromptSuppressedPage, isSubscribed]);
+
+  useEffect(() => {
+    if (!isPromptSuppressedPage) return;
+    // Avoid carrying a prompt from an authenticated page into OAuth after navigation.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNotifVisible(false);
+    setNotifBlocked(false);
+    setNotifGranted(false);
+    setInstallVisible(false);
+    setInstallEvent(null);
+    setIsIos(false);
+  }, [isPromptSuppressedPage]);
 
   const dismissNotif = useCallback(() => {
     const next = { ...readPromptState(NOTIF_KEY), dismissCount: readPromptState(NOTIF_KEY).dismissCount + 1, dismissedAt: new Date().toISOString() };
@@ -173,7 +190,7 @@ export function ProactivePrompts() {
 
   return (
     <>
-      {(notifPromptOpen) && (
+      {!isPromptSuppressedPage && notifPromptOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4">
           <div className="w-full max-w-md rounded-lg border border-outline-variant bg-surface-container-lowest p-6 shadow-cadence-2">
             <div className="flex items-start gap-3">
@@ -225,7 +242,7 @@ export function ProactivePrompts() {
           </div>
         </div>
       )}
-      {showInstall && (
+      {!isPromptSuppressedPage && showInstall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4">
           <div className="w-full max-w-md rounded-lg border border-outline-variant bg-surface-container-lowest p-6 shadow-cadence-2">
             <div className="flex items-start gap-3">

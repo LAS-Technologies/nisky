@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, LogOut, Mail, ShieldCheck, UserMinus, UserRoundPlus, X } from "lucide-react";
+import { AtSign, Check, Copy, Link2, LogOut, Mail, ShieldCheck, UserMinus, UserRoundPlus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,8 @@ export function MembersPanel({ project }: { project: Project }) {
   const mutations = useProjectMemberMutations(project.id);
   const leaveMutation = useLeaveProjectMutation();
   const [email, setEmail] = useState("");
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [confirmTransferId, setConfirmTransferId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [confirmCancelInvitationId, setConfirmCancelInvitationId] = useState<string | null>(null);
@@ -57,6 +59,27 @@ export function MembersPanel({ project }: { project: Project }) {
     } catch (error) {
       toast.error((error as { message?: string })?.message ?? "Ups, no pudimos enviar la invitación.");
     }
+  };
+
+  const createInviteLink = async () => {
+    try {
+      const result = await mutations.createInviteLink.mutateAsync();
+      const url = `${window.location.origin}/invite/${encodeURIComponent(result.token)}`;
+      setInviteLink(url);
+      setLinkCopied(false);
+      await navigator.clipboard?.writeText(url);
+      setLinkCopied(true);
+      toast.success("Enlace creado y copiado");
+    } catch (error) {
+      toast.error((error as { message?: string })?.message ?? "Ups, no pudimos crear el enlace.");
+    }
+  };
+
+  const copyInviteLink = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard?.writeText(inviteLink);
+    setLinkCopied(true);
+    toast.success("Enlace copiado");
   };
 
   const remove = async (memberId: string) => {
@@ -185,24 +208,24 @@ export function MembersPanel({ project }: { project: Project }) {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-2 py-2.5 -mx-2 hover:bg-surface-container-low" key={invitation.id}>
                 <Avatar
                   avatarUrl={invitation.invitee?.avatarUrl ?? null}
-                  email={invitation.email}
+                  email={invitation.email ?? "Invitación"}
                   name={invitation.invitee?.name ?? null}
                   size="md"
                 />
                 <span className="min-w-0 flex-1 basis-40">
                   <span className="block truncate font-body-sm text-body-sm text-on-surface">
-                    {invitation.invitee?.name ?? invitation.email}
+                     {invitation.invitee?.name ?? invitation.email ?? "Invitación por enlace"}
                     {invitation.invitee?.username && (
                       <span className="ml-1 font-data-mono text-data-mono text-xs text-on-surface-variant">@{invitation.invitee.username}</span>
                     )}
                   </span>
-                  <span className="block truncate font-data-mono text-data-mono text-[11px] text-on-surface-variant">{invitation.email}</span>
+                   <span className="block truncate font-data-mono text-data-mono text-[11px] text-on-surface-variant">{invitation.email ?? "Enlace de invitación"}</span>
                 </span>
                  <span className="inline-flex shrink-0 items-center rounded-full border border-outline-variant bg-surface-container-high px-1.5 py-0.5 font-label-caps text-[11px] uppercase tracking-wide text-on-surface-variant">
                   Pendiente
                 </span>
                 <button
-                  aria-label={`Cancelar invitación a ${invitation.invitee?.name ?? invitation.email}`}
+                  aria-label={`Cancelar invitación a ${invitation.invitee?.name ?? invitation.email ?? "invitación"}`}
                    className="flex h-9 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-on-surface-variant hover:border-error/50 hover:bg-surface-container-high hover:text-error"
                   onClick={() => setConfirmCancelInvitationId(invitation.id)}
                   title="Cancelar invitación"
@@ -218,7 +241,8 @@ export function MembersPanel({ project }: { project: Project }) {
       )}
 
       {canManageMembers ? (
-        <div className="flex gap-2 pt-1">
+        <div className="space-y-2 pt-1">
+          <div className="flex gap-2">
           <div className="relative min-w-0 flex-1">
             <AtSign size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
             <input
@@ -241,6 +265,32 @@ export function MembersPanel({ project }: { project: Project }) {
           >
             <Mail size={15} /> Invitar
           </button>
+          </div>
+          <button
+            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high disabled:opacity-50"
+            disabled={mutations.createInviteLink.isPending}
+            onClick={() => void createInviteLink()}
+            type="button"
+          >
+            <Link2 size={15} /> {mutations.createInviteLink.isPending ? "Creando enlace..." : "Crear enlace de invitación"}
+          </button>
+          {inviteLink && (
+            <div className="rounded-md border border-primary/20 bg-primary-fixed/30 p-2.5">
+              <p className="mb-1.5 font-label-caps text-label-caps text-primary">ENLACE DE INVITACIÓN</p>
+              <div className="flex gap-2">
+                <input aria-label="Enlace de invitación" className="field h-9 min-w-0 flex-1 text-xs" readOnly value={inviteLink} />
+                <button
+                  aria-label="Copiar enlace de invitación"
+                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high"
+                  onClick={() => void copyInviteLink()}
+                  type="button"
+                >
+                  {linkCopied ? <Check size={15} /> : <Copy size={15} />}
+                  <span className="hidden sm:inline">{linkCopied ? "Copiado" : "Copiar"}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : project.isDefault ? <p className="border-t border-outline-variant pt-3 font-body-sm text-body-sm text-on-surface-variant">Este es tu espacio personal; no tiene miembros compartidos.</p> : null}
 

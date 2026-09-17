@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const onLogout = () => {
       clearSession();
       setIsLoading(false);
+      if (pathname.startsWith("/invite/")) return;
       const oauthReturn = pathname === "/oauth/authorize" && typeof window !== "undefined"
         ? `${pathname}${window.location.search}`
         : null;

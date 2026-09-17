@@ -67,7 +67,7 @@ docker run -d -p 8787:8787 \
   -e NISKY_API_URL=https://api.tu-nisky.com/api/v1 \
   -e MCP_HOST=0.0.0.0 \
   -e MCP_ALLOWED_HOSTS=mcp.tu-dominio.com \
-  -e MCP_ALLOWED_ORIGINS=mcp.tu-dominio.com,chatgpt.com \
+  -e MCP_ALLOWED_ORIGINS=mcp.tu-dominio.com,chatgpt.com,gemini.google.com \
   --name nisky-mcp nisky-mcp
 ```
 
@@ -87,7 +87,7 @@ NISKY_API_URL=http://localhost:4000/api/v1 bun run dev
 | `MCP_PORT` | `8787` | Puerto HTTP del servidor |
 | `MCP_HOST` | `0.0.0.0` | Interfaz donde escucha el servidor |
 | `MCP_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Hostnames permitidos en `Host`, separados por comas |
-| `MCP_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1]` | Hostnames permitidos en `Origin`, separados por comas; en producción incluye `chatgpt.com` para ChatGPT |
+| `MCP_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1],gemini.google.com` | Hostnames permitidos en `Origin`, separados por comas; en producción incluye `chatgpt.com` y `gemini.google.com` |
 | `MCP_UPSTREAM_TIMEOUT_MS` | `10000` | Tiempo máximo de espera del backend en milisegundos |
 | `RATE_LIMIT_PER_MIN` | `60` | Máximo de peticiones por minuto por credencial en cada instancia |
 | `MCP_PUBLIC_URL` | `http://localhost:8787` | URL pública del servidor MCP, sin `/mcp` |
@@ -136,6 +136,22 @@ Copia el token (`nisky_pat_...`). Solo se muestra una vez. Puedes revocarlo en c
   }
 }
 ```
+
+#### Gemini CLI / Gemini Spark
+
+Gemini CLI puede conectarse con el transporte HTTP de MCP y descubrir OAuth automáticamente:
+
+```bash
+gemini mcp add --transport http nisky https://<tu-host>/mcp/
+```
+
+Para una conexión con PAT:
+
+```bash
+gemini mcp add --transport http --header "Authorization: Bearer nisky_pat_XXXX" nisky https://<tu-host>/mcp/
+```
+
+El servidor permite `Origin: https://gemini.google.com` y responde el preflight CORS de MCP. Si tu despliegue reemplaza la configuración de orígenes permitidos, conserva `gemini.google.com` en `MCP_ALLOWED_ORIGINS`.
 
 #### Otros clientes con soporte HTTP (Streamable HTTP)
 

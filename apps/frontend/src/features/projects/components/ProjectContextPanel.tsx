@@ -3,16 +3,31 @@
 import { CalendarDays, Clock3, RefreshCw, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import type { ProjectSummary, Task } from "@/types/entities";
-import { cn, formatDateTime, isTaskOverdue } from "@/lib/utils";
+import { cn, formatRelativeDate, isLegacyNoonDate, isTaskOverdue, localDateKey } from "@/lib/utils";
 
-function taskLabel(task: Task) {
-  if (!task.dueDate) return "Sin fecha";
-  return formatDateTime(task.dueDate);
+function groupUpcomingTasks(tasks: Task[]) {
+  const groups = new Map<string, { label: string; tasks: Task[] }>();
+  for (const task of tasks) {
+    if (!task.dueDate) continue;
+    const key = localDateKey(task.dueDate);
+    const group = groups.get(key) ?? { label: formatRelativeDate(task.dueDate), tasks: [] };
+    group.tasks.push(task);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
+function taskTimeLabel(task: Task) {
+  if (!task.dueDate || isLegacyNoonDate(task.dueDate)) return "Durante el día";
+  const date = new Date(task.dueDate);
+  if (date.getHours() === 23 && date.getMinutes() === 59) return "Durante el día";
+  return `Vence a las ${date.toLocaleTimeString("es-DO", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
 export function ProjectContextPanel({ summary, onOpenTask, showProgress = true, showUpcomingDates = true, isError = false, onRetry }: { summary: ProjectSummary | null; onOpenTask: (task: Task) => void; showProgress?: boolean; showUpcomingDates?: boolean; isError?: boolean; onRetry?: () => void }) {
   if (isError && !summary) return <ContextError onRetry={onRetry} />;
   if (!summary) return <ContextSkeleton />;
+  const upcomingGroups = groupUpcomingTasks(summary.upcomingTasks);
   return (
     <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:self-start">
       {showProgress && <ProjectProgressCard summary={summary} />}
@@ -25,21 +40,31 @@ export function ProjectContextPanel({ summary, onOpenTask, showProgress = true, 
           </div>
            <CalendarDays className="text-[#778186]" size={17} />
         </div>
-         <div className="mt-4 divide-y divide-[#e7e9e8]">
-          {summary.upcomingTasks.length === 0 ? (
-             <p className="py-3 text-[13px] text-[#5f6872]">No hay tareas con fecha próxima.</p>
-          ) : summary.upcomingTasks.map((task) => (
-             <button className="flex w-full items-center gap-3 rounded-md px-2 py-3 text-left hover:bg-[#eff1f0] hover:text-[#1e3a5f]" key={task.id} onClick={() => onOpenTask(task)} type="button">
-               <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", isTaskOverdue(task) ? "bg-[#fff1f3] text-[#c73b52]" : "bg-[#e7e9e8] text-[#1e3a5f]")}>
-                <Clock3 size={14} />
-              </span>
-              <span className="min-w-0 flex-1">
-                 <span className="block truncate text-[13px] font-medium text-[#2f3b45]">{task.title}</span>
-                 <span className={cn("mt-0.5 block text-[11px]", isTaskOverdue(task) ? "text-[#c73b52]" : "text-[#5f6872]")}>{taskLabel(task)}</span>
-              </span>
-            </button>
-          ))}
-        </div>
+          <div className="mt-4">
+           {summary.upcomingTasks.length === 0 ? (
+              <p className="py-3 text-[13px] text-[#5f6872]">No hay tareas con fecha próxima.</p>
+           ) : upcomingGroups.map((group) => (
+             <div className="border-t border-[#e7e9e8] first:border-t-0" key={group.label}>
+               <div className="flex items-center justify-between gap-3 px-2 py-2.5">
+                 <span className="text-[12px] font-semibold capitalize text-[#1e3a5f]">{group.label}</span>
+                 <span className="text-[11px] text-[#778186]">{group.tasks.length} {group.tasks.length === 1 ? "tarea" : "tareas"}</span>
+               </div>
+               <div className="divide-y divide-[#e7e9e8]">
+                 {group.tasks.map((task) => (
+                   <button className="flex w-full items-center gap-3 rounded-md px-2 py-3 text-left hover:bg-[#eff1f0] hover:text-[#1e3a5f]" key={task.id} onClick={() => onOpenTask(task)} type="button">
+                     <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", isTaskOverdue(task) ? "bg-[#fff1f3] text-[#c73b52]" : "bg-[#e7e9e8] text-[#1e3a5f]")}>
+                       <Clock3 size={14} />
+                     </span>
+                     <span className="min-w-0 flex-1">
+                       <span className="block truncate text-[13px] font-medium text-[#2f3b45]">{task.title}</span>
+                       <span className={cn("mt-0.5 block text-[11px]", isTaskOverdue(task) ? "text-[#c73b52]" : "text-[#5f6872]")}>{taskTimeLabel(task)}</span>
+                     </span>
+                   </button>
+                 ))}
+               </div>
+             </div>
+           ))}
+         </div>
       </section>}
 
       <section className="project-panel p-5">

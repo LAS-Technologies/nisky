@@ -1,4 +1,5 @@
 import type { Prisma } from "../../infra/prisma/generated/prisma/client";
+import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../../infra/prisma/client";
 import { AppError } from "../../utils/errors/handler";
 import { pushService } from "../push/push.service";
@@ -9,6 +10,11 @@ import { emitToUsers } from "../../config/socket.emit";
 
 const DEFAULT_COLOR = "#303e51";
 const PROJECT_MEMBER_USER_SELECT = { id: true, email: true, name: true, username: true, avatarUrl: true };
+const PROJECT_INVITE_PREFIX = "nisky_inv_";
+
+function hashInviteToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 function projectDate(value: string | null | undefined) {
   if (value === undefined || value === null) return value;
@@ -327,6 +333,65 @@ export class ProjectService {
     return invitation;
   }
 
+  async createInviteLink(userId: string, projectId: string) {
+    const project = await prisma.project.findFirst({ where: { id: projectId, userId }, select: { id: true, isDefault: true } });
+    if (!project) throw new AppError("NOT_FOUND", "Proyecto no encontrado");
+    if (project.isDefault) throw new AppError("FORBIDDEN", "El proyecto por defecto no se puede compartir");
+
+    const token = `${PROJECT_INVITE_PREFIX}${randomBytes(32).toString("base64url")}`;
+    const link = await prisma.projectInviteLink.create({
+      data: { projectId, createdById: userId, tokenHash: hashInviteToken(token) },
+      select: { id: true, createdAt: true },
+    });
+    return { ...link, token };
+  }
+
+  async getInviteLink(token: string) {
+    const link = await prisma.projectInviteLink.findUnique({
+      where: { tokenHash: hashInviteToken(token) },
+      select: {
+        revokedAt: true,
+        project: { select: { id: true, name: true, description: true, color: true, isDefault: true } },
+      },
+    });
+    if (!link || link.revokedAt || link.project.isDefault) throw new AppError("NOT_FOUND", "El enlace de invitación no existe o ya no está disponible");
+    return { project: link.project };
+  }
+
+  async acceptInviteLink(userId: string, token: string) {
+    const link = await prisma.projectInviteLink.findUnique({
+      where: { tokenHash: hashInviteToken(token) },
+      select: { revokedAt: true, project: { select: { id: true, userId: true, name: true, isDefault: true } } },
+    });
+    if (!link || link.revokedAt || link.project.isDefault) throw new AppError("NOT_FOUND", "El enlace de invitación no existe o ya no está disponible");
+
+    const { project } = link;
+    if (project.userId === userId) return { success: true, projectId: project.id, alreadyMember: true };
+
+    const existingMember = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: project.id, userId } } });
+    if (existingMember) return { success: true, projectId: project.id, alreadyMember: true };
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, username: true } });
+    if (!user) throw new AppError("NOT_FOUND", "Usuario no encontrado");
+    await prisma.projectMember.create({ data: { projectId: project.id, userId, role: "MEMBER" } });
+    await projectActivityService.record({
+      projectId: project.id,
+      actorId: userId,
+      type: "MEMBER_ADDED",
+      entityId: userId,
+      entityTitle: user.username ? `@${user.username}` : user.email,
+    });
+    await pushService.sendToUser(project.userId, {
+      title: "Nuevo miembro en tu proyecto",
+      body: `${user.username ? `@${user.username}` : user.email} se unió a "${project.name}"`,
+      url: `/projects/${project.id}?tab=team`,
+      tag: `invite-link-accepted-${project.id}`,
+      data: { type: "PROJECT_INVITATION_ACCEPTED", projectId: project.id },
+    });
+    emitToUsers(await getProjectAudience(project.id), "projects", { kind: "invitation_accepted", projectId: project.id, userId });
+    return { success: true, projectId: project.id, alreadyMember: false };
+  }
+
   async listPendingInvitations(userId: string) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     if (!user) return [];
@@ -349,7 +414,7 @@ export class ProjectService {
       },
       orderBy: { createdAt: "desc" },
     });
-    const inviteeEmails = [...new Set(invitations.map((invitation) => invitation.email))];
+    const inviteeEmails = [...new Set(invitations.map((invitation) => invitation.email).filter((email): email is string => Boolean(email)))];
     const invitees = await prisma.user.findMany({
       where: { email: { in: inviteeEmails } },
       select: { id: true, email: true, name: true, username: true, avatarUrl: true },
@@ -362,7 +427,7 @@ export class ProjectService {
       status: invitation.status,
       createdAt: invitation.createdAt,
       invitedBy: invitation.invitedBy,
-      invitee: inviteeByEmail.get(invitation.email) ?? null,
+      invitee: invitation.email ? inviteeByEmail.get(invitation.email) ?? null : null,
     }));
   }
 

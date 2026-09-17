@@ -95,10 +95,14 @@ export interface ProjectInvitation {
   projectId: string;
   project: Project;
   invitedBy: { id: string; email: string; name: string | null; username: string | null };
-  email: string;
+  email: string | null;
   status: "PENDING" | "ACCEPTED" | "DECLINED";
   createdAt: string;
   invitee?: { id: string; email: string; name: string | null; username: string | null; avatarUrl: string | null } | null;
+}
+
+export interface ProjectInvitePreview {
+  project: Pick<Project, "id" | "name" | "description" | "color" | "isDefault">;
 }
 
 export interface TimeBlock {
@@ -542,6 +546,22 @@ export interface HomeWeeklyStats {
   weekEnd: string;
 }
 
+export type HomeNextActivity =
+  | {
+      kind: "TIME_BLOCK";
+      block: TimeBlockWithProject;
+      start: string;
+      end: string;
+    }
+  | {
+      kind: "EVENT";
+      event: CalendarEvent;
+      start: string;
+      end: string | null;
+      startMin: number | null;
+      endMin: number | null;
+    };
+
 export interface HomeOverview {
   activeBlock: TimeBlockWithProject | null;
   activeEvent: CalendarEvent | null;
@@ -552,6 +572,7 @@ export interface HomeOverview {
   futureBlocks: (TimeBlockWithProject & { date?: string })[];
   nextBlock: TimeBlockWithProject | null;
   nextBlockStart: string | null;
+  nextActivity: HomeNextActivity | null;
   weekly: HomeWeeklyStats;
 }
 

@@ -44,6 +44,19 @@ type BlockCandidate = {
 
 type TimeBlockWithProject = BlockCandidate & { project?: unknown };
 
+type CalendarEventWithExceptions = Prisma.CalendarEventGetPayload<{ include: { exceptions: true } }>;
+
+type NextActivity =
+  | { kind: "TIME_BLOCK"; block: TimeBlockWithProject; start: string; end: string }
+  | {
+      kind: "EVENT";
+      event: CalendarEventWithExceptions;
+      start: string;
+      end: string | null;
+      startMin: number | null;
+      endMin: number | null;
+    };
+
 function nextBlockOccurrence(blocks: TimeBlockWithProject[], exceptions: TimeBlockExceptionRow[], now: DateTime) {
   let best: BlockCandidate | null = null;
   let bestDay: DateTime | null = null;
@@ -64,7 +77,58 @@ function nextBlockOccurrence(blocks: TimeBlockWithProject[], exceptions: TimeBlo
   return {
     block: best,
     start: bestDay.set({ hour: Math.floor(best.startMin / 60), minute: best.startMin % 60 }).toUTC().toISO()!,
+    end: bestDay.set({ hour: Math.floor(best.endMin / 60), minute: best.endMin % 60 }).toUTC().toISO()!,
   };
+}
+
+function nextEventOccurrence(events: CalendarEventWithExceptions[], now: DateTime) {
+  let best: CalendarEventWithExceptions | null = null;
+  let bestDay: DateTime | null = null;
+  let bestStartMin = 0;
+  let bestEndMin: number | null = null;
+  let bestTimestamp = Number.POSITIVE_INFINITY;
+  const nowMin = now.hour * 60 + now.minute;
+
+  for (let offset = 0; offset < 30; offset += 1) {
+    const day = now.plus({ days: offset }).startOf("day");
+    for (const event of events) {
+      const occurrence = eventOccurrenceOn(event, day.toJSDate(), event.exceptions);
+      if (!occurrence.occurs) continue;
+
+      const startMin = event.allDay ? 0 : occurrence.startMin ?? event.startMin;
+      if (startMin == null || (offset === 0 && startMin <= nowMin)) continue;
+      const timestamp = day.toMillis() + startMin * 60_000;
+      if (timestamp >= bestTimestamp) continue;
+
+      best = event;
+      bestDay = day;
+      bestStartMin = startMin;
+      bestEndMin = event.allDay ? null : occurrence.endMin ?? event.endMin;
+      bestTimestamp = timestamp;
+    }
+  }
+
+  if (!best || !bestDay) return null;
+  const start = bestDay.set({ hour: Math.floor(bestStartMin / 60), minute: bestStartMin % 60 }).toUTC().toISO()!;
+  const end = bestEndMin == null
+    ? null
+    : bestDay.set({ hour: Math.floor(bestEndMin / 60), minute: bestEndMin % 60 }).toUTC().toISO();
+  return { event: best, start, end, startMin: bestStartMin, endMin: bestEndMin };
+}
+
+function nextActivityOccurrence(
+  blocks: TimeBlockWithProject[],
+  events: CalendarEventWithExceptions[],
+  exceptions: TimeBlockExceptionRow[],
+  now: DateTime,
+): NextActivity | null {
+  const block = nextBlockOccurrence(blocks, exceptions, now);
+  const event = nextEventOccurrence(events, now);
+  if (!block && !event) return null;
+  if (!event || (block && block.start <= event.start)) {
+    return { kind: "TIME_BLOCK", block: block!.block, start: block!.start, end: block!.end };
+  }
+  return { kind: "EVENT", event: event.event, start: event.start, end: event.end, startMin: event.startMin, endMin: event.endMin };
 }
 
 export class HomeService {
@@ -78,7 +142,7 @@ export class HomeService {
     const weekEnd = weekStart.endOf("week");
     const toUtc = (value: DateTime) => value.toUTC().toJSDate();
 
-    const [activeBlock, defaultProject, allBlocks, exceptions] = await Promise.all([
+    const [activeBlock, defaultProject, allBlocks, exceptions, calendarEvents] = await Promise.all([
       timeBlockService.activeNow(userId),
       prisma.project.findFirst({ where: { userId, isDefault: true } }),
       prisma.timeBlock.findMany({
@@ -92,6 +156,7 @@ export class HomeService {
           OR: [{ date: { gte: todayStart.toJSDate() } }, { targetDate: { gte: todayStart.toJSDate() } }],
         },
       }),
+      prisma.calendarEvent.findMany({ where: { userId }, include: { exceptions: true } }),
     ]);
 
     const todaySchedules = await taskScheduleService.list(userId, {
@@ -116,11 +181,9 @@ export class HomeService {
         }
       : null;
     const nextBlockStart = occurrence?.start ?? null;
+    const nextActivity = nextActivityOccurrence(allBlocks, calendarEvents, exceptions as TimeBlockExceptionRow[], now);
 
-    const activeEvent = await prisma.calendarEvent
-      .findMany({ where: { userId }, include: { exceptions: true } })
-      .then((events) =>
-        events
+    const activeEvent = calendarEvents
           .map((event) => {
             const occ = eventOccurrenceOn(event, now.toJSDate(), event.exceptions);
             if (!occ.occurs) return null;
@@ -129,8 +192,7 @@ export class HomeService {
             if (occ.startMin > currentMin || occ.endMin <= currentMin) return null;
             return { ...event, startMin: occ.startMin, endMin: occ.endMin };
           })
-          .find((event): event is NonNullable<typeof event> => event !== null) ?? null,
-      );
+          .find((event): event is NonNullable<typeof event> => event !== null) ?? null;
 
     const urgentTasks = await prisma.task.findMany({
       where: {
@@ -236,6 +298,7 @@ export class HomeService {
       futureBlocks,
       nextBlock,
       nextBlockStart,
+      nextActivity,
       weekly: {
         totalWorkSec: workSessions.reduce((sum, session) => sum + (session.actualSec ?? session.plannedSec), 0),
         completedWorkSessions: workSessions.length,

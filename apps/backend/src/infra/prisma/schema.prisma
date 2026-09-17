@@ -62,6 +62,7 @@ model User {
   calendarEventExceptions CalendarEventException[]
   projectMemberships ProjectMember[] @relation("UserProjectMemberships")
   sentProjectInvitations ProjectInvitation[] @relation("UserProjectInvitations")
+  createdProjectInviteLinks ProjectInviteLink[] @relation("UserCreatedProjectInviteLinks")
   assignedTasks  Task[]              @relation("TaskAssignee")
   notificationSettings NotificationSettings?
   notificationLogs NotificationLog[]
@@ -93,6 +94,7 @@ model Project {
   comments   Comment[]
   activities ProjectActivity[]
   resources  ProjectResource[]
+  inviteLinks ProjectInviteLink[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -127,6 +129,20 @@ model ProjectInvitation {
   @@index([projectId])
   @@index([email])
   @@index([invitedById])
+}
+
+model ProjectInviteLink {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User     @relation("UserCreatedProjectInviteLinks", fields: [createdById], references: [id], onDelete: Cascade)
+  tokenHash   String   @unique
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, revokedAt])
+  @@index([createdById])
 }
 
 model TimeBlock {

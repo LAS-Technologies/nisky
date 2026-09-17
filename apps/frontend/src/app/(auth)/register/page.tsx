@@ -17,7 +17,13 @@ export default function RegisterPage() {
   const { setAuth } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
   const config = usePublicConfigQuery();
-  const { mutate, isPending, error } = useRegister((result) => { setAuth(result); toast.success("¡Tu cuenta está lista! Empecemos."); window.location.replace("/"); });
+  const { mutate, isPending, error } = useRegister((result) => {
+    setAuth(result);
+    toast.success("¡Tu cuenta está lista! Empecemos.");
+    const requestedRedirect = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("redirect");
+    const redirect = requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//") && !requestedRedirect.includes("\\") ? requestedRedirect : "/";
+    window.location.replace(redirect);
+  });
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema) });
   useEffect(() => {
     // Do not allow the browser's native submit to run before React owns the form.

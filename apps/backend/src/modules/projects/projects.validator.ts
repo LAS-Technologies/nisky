@@ -15,6 +15,9 @@ export const updateProjectSchema = createProjectSchema.partial();
 
 export const projectIdParamSchema = z.object({ projectId: z.uuid("El proyecto no es válido") });
 export const invitationIdParamSchema = z.object({ invitationId: z.uuid("La invitación no es válida") });
+export const inviteTokenParamSchema = z.object({
+  token: z.string().trim().min(20, "El enlace de invitación no es válido").max(160, "El enlace de invitación no es válido"),
+});
 export const memberIdParamSchema = z.object({
   projectId: z.uuid("El proyecto no es válido"),
   memberId: z.uuid("El miembro no es válido"),

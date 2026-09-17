@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { Project, ProjectInvitation, ProjectMember, ProjectRole, User } from "@/types/entities";
+import type { Project, ProjectInvitation, ProjectInvitePreview, ProjectMember, ProjectRole, User } from "@/types/entities";
 
 export async function getProjects() {
   const { data } = await api.get<{ data: Project[] }>("/projects");
@@ -58,6 +58,21 @@ export async function getProjectMembers(projectId: string) {
 
 export async function inviteProjectMember(projectId: string, identifier: string) {
   const { data } = await api.post<{ data: ProjectInvitation }>(`/projects/${projectId}/invitations`, { identifier });
+  return data.data;
+}
+
+export async function createProjectInviteLink(projectId: string) {
+  const { data } = await api.post<{ data: { id: string; token: string; createdAt: string } }>(`/projects/${projectId}/invite-links`);
+  return data.data;
+}
+
+export async function getProjectInvitePreview(token: string) {
+  const { data } = await api.get<{ data: ProjectInvitePreview }>(`/projects/invite-links/${encodeURIComponent(token)}`);
+  return data.data;
+}
+
+export async function acceptProjectInviteLink(token: string) {
+  const { data } = await api.post<{ data: { success: boolean; projectId: string; alreadyMember: boolean } }>(`/projects/invite-links/${encodeURIComponent(token)}/accept`);
   return data.data;
 }
 

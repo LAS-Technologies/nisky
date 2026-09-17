@@ -10,6 +10,7 @@ import { registerAllTools, toolDescriptor } from "./tools";
 const PORT = Number(process.env.MCP_PORT ?? 8787);
 const HOST = process.env.MCP_HOST ?? "0.0.0.0";
 const LOCAL_HOSTS = "localhost,127.0.0.1,[::1]";
+const GEMINI_ORIGIN = "gemini.google.com";
 function oauthProtectedResourceMetadata(_req: Request, res: Response) {
   res.set("Cache-Control", "public, max-age=300");
   res.json(protectedResourceMetadata());
@@ -17,6 +18,32 @@ function oauthProtectedResourceMetadata(_req: Request, res: Response) {
 
 function hostList(value: string | undefined) {
   return (value ?? LOCAL_HOSTS).split(",").map((host) => host.trim()).filter(Boolean);
+}
+
+function originList(value: string | undefined) {
+  return [...new Set([...hostList(value), GEMINI_ORIGIN])];
+}
+
+function setCorsHeaders(req: Request, res: Response, allowedOrigins: string[]) {
+  const origin = req.headers.origin;
+  if (!origin) return false;
+
+  let hostname: string;
+  try {
+    hostname = new URL(origin).hostname;
+  } catch {
+    return false;
+  }
+  if (!allowedOrigins.includes(origin) && !allowedOrigins.includes(hostname)) return false;
+
+  res.set({
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers": req.headers["access-control-request-headers"] ?? "Authorization, Content-Type, Mcp-Session-Id, Last-Event-Id, Mcp-Protocol-Version",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Expose-Headers": "Mcp-Session-Id, WWW-Authenticate, Last-Event-Id, Mcp-Protocol-Version",
+    Vary: "Origin, Access-Control-Request-Headers",
+  });
+  return true;
 }
 
 async function requireBearer(req: Request, res: Response, next: NextFunction) {
@@ -70,11 +97,20 @@ const nodeHandler = toNodeHandler(handler);
 
 const app = createMcpExpressApp({
   allowedHosts: hostList(process.env.MCP_ALLOWED_HOSTS),
-  allowedOrigins: hostList(process.env.MCP_ALLOWED_ORIGINS),
+  allowedOrigins: originList(process.env.MCP_ALLOWED_ORIGINS),
   host: HOST,
   jsonLimit: "1mb",
 });
 app.disable("x-powered-by");
+const allowedOrigins = originList(process.env.MCP_ALLOWED_ORIGINS);
+app.use((req, res, next) => {
+  const corsAllowed = setCorsHeaders(req, res, allowedOrigins);
+  if (req.path === "/mcp" && req.method === "OPTIONS") {
+    res.sendStatus(corsAllowed ? 204 : 403);
+    return;
+  }
+  next();
+});
 app.get("/.well-known/oauth-protected-resource", oauthProtectedResourceMetadata);
 app.all("/mcp", requireBearer, rateLimit, (req, res) => void nodeHandler(req, res, req.body));
 

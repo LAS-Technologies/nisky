@@ -18,6 +18,7 @@ import { PriorityChip } from "@/features/tasks/components/PriorityChip";
 import { minToTime } from "@/features/timeblocks/lib/time";
 import type {
   CalendarEvent,
+  HomeNextActivity,
   Task,
   TimeBlockWithProject,
 } from "@/types/entities";
@@ -68,16 +69,14 @@ function dueBadge(task: Task) {
 
 export function ActiveBlockBanner({
   block,
-  nextBlock,
-  nextBlockStart,
+  nextActivity,
   tasks,
   activeEvent,
   onPlayPomodoro,
   onToggleTask,
 }: {
   block: TimeBlockWithProject | null;
-  nextBlock: TimeBlockWithProject | null;
-  nextBlockStart: string | null;
+  nextActivity: HomeNextActivity | null;
   tasks: Task[];
   activeEvent: CalendarEvent | null;
   onPlayPomodoro: (taskId?: string, projectId?: string, timeBlockId?: string, timeBlockDate?: string) => void;
@@ -140,17 +139,26 @@ export function ActiveBlockBanner({
   }
 
   if (!block) {
-    if (nextBlock && nextBlockStart) {
-      const diffMs = new Date(nextBlockStart).getTime() - nowTimestamp;
+    if (nextActivity) {
+      const diffMs = new Date(nextActivity.start).getTime() - nowTimestamp;
       const diffMin = Math.max(0, Math.round(diffMs / 60_000));
       const referenceDate = new Date(nowTimestamp);
       const whenLabel =
-        localDateKey(nextBlockStart) === localDateKey(referenceDate)
+        localDateKey(nextActivity.start) === localDateKey(referenceDate)
           ? `En ${formatDuration(diffMin)}`
-          : formatRelativeDate(nextBlockStart, false, referenceDate);
-      const label =
-        nextBlock.project?.name ?? nextBlock.name ?? "Bloque de enfoque";
-      const color = nextBlock.project?.color ?? "#303e51";
+          : formatRelativeDate(nextActivity.start, false, referenceDate);
+      const isEvent = nextActivity.kind === "EVENT";
+      const label = isEvent
+        ? nextActivity.event.title
+        : nextActivity.block.project?.name ?? nextActivity.block.name ?? "Bloque de enfoque";
+      const color = isEvent
+        ? nextActivity.event.color ?? "#303e51"
+        : nextActivity.block.project?.color ?? "#303e51";
+      const timeLabel = isEvent
+        ? nextActivity.event.allDay
+          ? "Todo el día"
+          : `${minToTime(nextActivity.startMin ?? 0)}–${minToTime(nextActivity.endMin ?? 0)}`
+        : `${minToTime(nextActivity.block.startMin)}–${minToTime(nextActivity.block.endMin)}`;
       return (
         <div className="flex flex-col gap-3 rounded-lg border border-outline-variant bg-surface-container-lowest p-container-padding shadow-sm">
           <div className="min-w-0">
@@ -159,7 +167,7 @@ export function ActiveBlockBanner({
                 aria-hidden="true"
                 className="h-1.5 w-1.5 rounded-full bg-secondary/70"
               />
-              Próximo bloque
+              Próxima actividad
             </span>
             <div className="mt-1.5 flex min-w-0 items-center gap-2">
               <span
@@ -171,6 +179,11 @@ export function ActiveBlockBanner({
                 {label}
               </p>
             </div>
+            {isEvent && nextActivity.event.location && (
+              <p className="mt-1 flex items-center gap-1.5 truncate font-body-sm text-body-sm text-on-surface-variant">
+                <MapPin size={13} /> {nextActivity.event.location}
+              </p>
+            )}
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-data-mono text-data-mono text-xs text-on-surface-variant">
               <span className="inline-flex items-center gap-1.5 text-secondary">
                 <CalendarDays size={13} /> {whenLabel}
@@ -179,7 +192,7 @@ export function ActiveBlockBanner({
                 ·
               </span>
               <span>
-                {minToTime(nextBlock.startMin)}–{minToTime(nextBlock.endMin)}
+                {timeLabel}
               </span>
             </p>
           </div>
@@ -190,20 +203,22 @@ export function ActiveBlockBanner({
             >
               Ver agenda <ArrowRight size={14} />
             </Link>
-            <button
-              className="flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-4 font-body-sm text-body-sm font-semibold text-on-primary hover:bg-primary-container hover:text-on-primary-container"
-              onClick={() => {
-                onPlayPomodoro(
-                  undefined,
-                  nextBlock?.projectId ?? undefined,
-                  nextBlock?.id,
-                  localDateKey(new Date(nextBlockStart)),
-                );
-              }}
-              type="button"
-            >
-              <Play size={15} /> Comenzar enfoque
-            </button>
+            {!isEvent && (
+              <button
+                className="flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-4 font-body-sm text-body-sm font-semibold text-on-primary hover:bg-primary-container hover:text-on-primary-container"
+                onClick={() => {
+                  onPlayPomodoro(
+                    undefined,
+                    nextActivity.block.projectId ?? undefined,
+                    nextActivity.block.id,
+                    localDateKey(new Date(nextActivity.start)),
+                  );
+                }}
+                type="button"
+              >
+                <Play size={15} /> Comenzar enfoque
+              </button>
+            )}
           </div>
         </div>
       );

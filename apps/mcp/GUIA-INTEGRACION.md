@@ -101,6 +101,22 @@ Aquí depende de qué herramienta uses. Elige la tuya:
 
 3. Guarda y reinicia Claude
 
+### Si usas Gemini CLI o Gemini Spark
+
+Nisky usa el transporte HTTP estándar de MCP y publica el descubrimiento OAuth, por lo que Gemini puede completar la autorización automáticamente:
+
+```bash
+gemini mcp add --transport http nisky https://mcp-nisky.las.do/mcp/
+```
+
+Si tu instalación requiere un token manual, puedes configurar el header:
+
+```bash
+gemini mcp add --transport http --header "Authorization: Bearer TU_LLAVE_SECRETA" nisky https://mcp-nisky.las.do/mcp/
+```
+
+Para un cliente web de Gemini Spark, registra la misma URL como servidor MCP remoto. El servidor permite `gemini.google.com` y responde el preflight CORS; si tu despliegue reemplaza la lista de orígenes, conserva ese hostname en `MCP_ALLOWED_ORIGINS`. No guardes el PAT en el repositorio ni en el frontend.
+
 ### Si usas otra herramienta
 
 Casi todas las que soportan "servidores MCP por HTTP" funcionan igual: solo necesitas darles la **URL** y el **encabezado de autorización**:

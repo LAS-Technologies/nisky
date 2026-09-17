@@ -9,6 +9,7 @@ type IdParams = { id: string };
 type ProjectIdParams = { projectId: string };
 type MemberIdParams = { projectId: string; memberId: string };
 type InvitationIdParams = { invitationId: string };
+type InviteTokenParams = { token: string };
 type ResourceIdParams = { projectId: string; resourceId: string };
 
 function userId(req: Request) {
@@ -59,6 +60,18 @@ export class ProjectController {
 
   inviteMember = async (req: Request<ProjectIdParams, {}, InviteMemberDto>, res: Response, next: NextFunction) => {
     try { res.success(await projectService.inviteMember(userId(req), req.params.projectId, req.body.identifier), 201); } catch (error) { next(error); }
+  };
+
+  createInviteLink = async (req: Request<ProjectIdParams>, res: Response, next: NextFunction) => {
+    try { res.success(await projectService.createInviteLink(userId(req), req.params.projectId), 201); } catch (error) { next(error); }
+  };
+
+  getInviteLink = async (req: Request<InviteTokenParams>, res: Response, next: NextFunction) => {
+    try { res.success(await projectService.getInviteLink(req.params.token)); } catch (error) { next(error); }
+  };
+
+  acceptInviteLink = async (req: Request<InviteTokenParams>, res: Response, next: NextFunction) => {
+    try { res.success(await projectService.acceptInviteLink(userId(req), req.params.token)); } catch (error) { next(error); }
   };
 
   listPendingInvitations = async (req: Request, res: Response, next: NextFunction) => {

@@ -117,8 +117,7 @@ export default function DashboardPage() {
               <ActiveBlockBanner
                 activeEvent={overview?.activeEvent ?? null}
                 block={activeBlock}
-                nextBlock={overview?.nextBlock ?? null}
-                nextBlockStart={overview?.nextBlockStart ?? null}
+                nextActivity={overview?.nextActivity ?? null}
                 onPlayPomodoro={handlePlayPomodoro}
                 onToggleTask={(task) => void toggleTask(task)}
                 tasks={overview?.blockTasks ?? []}
