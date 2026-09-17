@@ -612,6 +612,7 @@ export function TaskDetailsPanel({
   useEffect(() => {
     if (!editingSubtaskId || !editingSubtaskRef.current) return;
     const element = editingSubtaskRef.current;
+    element.textContent = editingSubtaskOriginalTitleRef.current;
     element.focus();
     const range = document.createRange();
     range.selectNodeContents(element);
@@ -832,7 +833,7 @@ export function TaskDetailsPanel({
         tabIndex={pendingSubtaskId !== null ? -1 : 0}
         suppressContentEditableWarning
       >
-        {subtask.title}
+        {editingSubtaskId === subtask.id ? null : subtask.title}
       </span>
       <button
         aria-label={`Eliminar subtarea: ${subtask.title}`}
