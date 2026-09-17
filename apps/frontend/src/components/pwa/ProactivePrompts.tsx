@@ -38,7 +38,9 @@ export function ProactivePrompts() {
     pathname === "/register" ||
     pathname.startsWith("/auth/") ||
     pathname === "/oauth" ||
-    pathname.startsWith("/oauth/");
+    pathname.startsWith("/oauth/") ||
+    pathname === "/invite" ||
+    pathname.startsWith("/invite/");
   const [notifVisible, setNotifVisible] = useState(false);
   const [notifBlocked, setNotifBlocked] = useState(false);
   const [notifGranted, setNotifGranted] = useState(false);

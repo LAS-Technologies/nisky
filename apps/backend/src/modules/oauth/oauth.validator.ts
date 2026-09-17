@@ -9,7 +9,7 @@ export const authorizeSchema = z.object({
   response_type: z.literal("code"),
   redirect_uri: redirectUri,
   scope,
-  state: z.string().max(512).optional(),
+  state: z.string().max(8192).optional(),
   code_challenge: z.string().regex(/^[A-Za-z0-9_-]{43}$/, "code_challenge debe ser un S256 base64url de 43 caracteres"),
   code_challenge_method: z.literal("S256"),
   resource: z.url().max(2048).optional(),

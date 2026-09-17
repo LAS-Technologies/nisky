@@ -25,6 +25,18 @@ describe("OAuth validators", () => {
     expect(result.success).toBe(false);
   });
 
+  test("accepts the long state values sent by browser OAuth clients", () => {
+    const result = authorizeSchema.safeParse({
+      client_id: "client",
+      response_type: "code",
+      redirect_uri: "http://localhost:3000/callback",
+      state: "s".repeat(2048),
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+    });
+    expect(result.success).toBe(true);
+  });
+
   test("allows refresh-token support in dynamic client registration", () => {
     const result = registrationSchema.safeParse({
       client_name: "ChatGPT",

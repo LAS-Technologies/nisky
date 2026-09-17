@@ -17,10 +17,10 @@ function groupUpcomingTasks(tasks: Task[]) {
   return [...groups.values()];
 }
 
-function taskTimeLabel(task: Task) {
-  if (!task.dueDate || isLegacyNoonDate(task.dueDate)) return "Durante el día";
+function taskTimeLabel(task: Task): string | null {
+  if (!task.dueDate || isLegacyNoonDate(task.dueDate)) return null;
   const date = new Date(task.dueDate);
-  if (date.getHours() === 23 && date.getMinutes() === 59) return "Durante el día";
+  if (date.getHours() === 23 && date.getMinutes() === 59) return null;
   return `Vence a las ${date.toLocaleTimeString("es-DO", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
@@ -57,7 +57,7 @@ export function ProjectContextPanel({ summary, onOpenTask, showProgress = true, 
                      </span>
                      <span className="min-w-0 flex-1">
                        <span className="block truncate text-[13px] font-medium text-[#2f3b45]">{task.title}</span>
-                       <span className={cn("mt-0.5 block text-[11px]", isTaskOverdue(task) ? "text-[#c73b52]" : "text-[#5f6872]")}>{taskTimeLabel(task)}</span>
+                        {taskTimeLabel(task) && <span className={cn("mt-0.5 block text-[11px]", isTaskOverdue(task) ? "text-[#c73b52]" : "text-[#5f6872]")}>{taskTimeLabel(task)}</span>}
                      </span>
                    </button>
                  ))}
