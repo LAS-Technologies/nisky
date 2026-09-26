@@ -13,6 +13,7 @@ Lee este archivo antes de modificar el proyecto.
 - Access token en memoria; refresh token en cookie `httpOnly` y hash en base de datos.
 - Todo dato de negocio debe estar aislado por `userId`.
 - Design system Serene Cadence: superficies claras azuladas, tipografía Plus Jakarta Sans + Inter, radios suaves y sombras sutiles.
+- Referencia visual oficial: Propuesta 04 de Figma, página «Diseño oficial · Nisky». Seguir el plan por módulos y el estado de implementación en `docs/design-official.md`; conservar la firma LAS abajo a la izquierda.
 - No añadir secretos a Git.
 
 ## Comandos
