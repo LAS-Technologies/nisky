@@ -180,155 +180,22 @@ export function ProjectTaskRow({
     );
   };
 
-  return (
-    <article
-      aria-current={isPreviewed ? "true" : undefined}
-      className={cn(
-        "grid min-w-0 max-w-full grid-cols-[44px_minmax(0,1fr)] gap-2 px-2 py-2 transition-colors hover:bg-[#fafaf8] sm:px-3 md:grid-cols-[44px_minmax(0,1fr)_7.25rem_6.5rem_7.5rem_7rem_2.75rem] md:items-center lg:px-4",
-        completed && "bg-[#fdfdfb]",
-        isPreviewed && "bg-[#f0f5ff] ring-1 ring-inset ring-[#3b82f6]",
-      )}
-    >
-      <button
-        aria-label={
-          completed
-            ? "Marcar tarea como pendiente"
-            : "Marcar tarea como completada"
-        }
-        className="flex h-11 w-11 items-center justify-center rounded-full text-[#9aa2a5] hover:bg-[#e7e9e8] hover:text-[#1e3a5f] disabled:cursor-wait disabled:opacity-50"
-        disabled={!canEditTasks || pendingField !== null}
-        onClick={() => onToggle(displayTask)}
-        type="button"
-      >
-        {completed ? (
-          <CheckCircle2 className="text-[#4a7c59]" size={20} />
-        ) : (
-          <Circle size={20} />
-        )}
-      </button>
-
-      <div className="flex min-w-0 items-start gap-2 md:hidden">
-        <div className="min-w-0 flex-1">
-          <button
-            className="block w-full min-w-0 max-w-full overflow-hidden rounded-md text-left"
-            onClick={onOpen}
-            type="button"
-          >
-            <span
-              className={cn(
-                "block truncate text-[13px] font-medium text-[#2f3b45]",
-                completed && "text-[#858d91] line-through",
-              )}
-            >
-              {task.title}
-            </span>
-          </button>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#858d91]">
-            <TaskStatusSelect
-              ariaLabel={`Cambiar estado de ${task.title}`}
-              className="h-6 w-fit max-w-full px-2 text-[10px]"
-              disabled={!canEditTasks || pendingField !== null}
-              onChange={updateStatus}
-              value={displayTask.status}
-            />
-            <TaskPrioritySelect
-              ariaLabel={`Cambiar prioridad de ${task.title}`}
-              className="h-6 w-fit max-w-full px-2 text-[10px]"
-              disabled={!canEditTasks || pendingField !== null}
-              onChange={updatePriority}
-              value={displayTask.priority}
-            />
-            <TaskDueDateCell
-              disabled={!canEditTasks || pendingField !== null}
-              onChange={updateDueDate}
-              pending={pendingField === "dueDate"}
-              status={displayTask.status}
-              title={task.title}
-              value={displayDueDate}
-            />
-            <TaskAssigneeSelect
-              ariaLabel={`Cambiar responsable de ${task.title}`}
-              className="max-w-[10rem] text-left text-[11px]"
-              disabled={
-                !canEditTasks || pendingField !== null || members.length === 0
-              }
-              onChange={updateAssignee}
-              options={assigneeOptions}
-              value={displayAssigneeId}
-            />
-          </div>
-        </div>
-        <TaskRowActions
-          onOpen={onOpen}
-          onStartPomodoro={onStartPomodoro}
-          taskTitle={task.title}
-        />
+  return <article className={cn("min-w-0", isPreviewed && "bg-primary-fixed/30")}>
+    <div className="project-row">
+      <button className="text-left" onClick={onOpen}><span>{task.title}</span><small>{assigneeOptions.find(a => a.id === displayAssigneeId)?.label ?? "Sin asignar"} · {displayDueDate ? formatTaskDueDate(displayDueDate) : "Sin fecha"} · {{URGENT:"Urgente",HIGH:"Alta",NORMAL:"Normal",LOW:"Baja"}[displayTask.priority]}</small></button>
+      <TaskStatusSelect ariaLabel={`Cambiar estado de ${task.title}`} disabled={!canEditTasks || pendingField !== null} value={displayTask.status} onChange={updateStatus} />
+    </div>
+    <details className="px-4 pb-3">
+      <summary className="project-small cursor-pointer">Acciones de la tarea</summary>
+      <div className="flex flex-wrap items-center gap-3 pt-3">
+        <button className="project-button" disabled={!canEditTasks || pendingField !== null} onClick={() => onToggle(displayTask)}>{completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}{completed ? "Marcar pendiente" : "Completar"}</button>
+        <TaskPrioritySelect ariaLabel={`Cambiar prioridad de ${task.title}`} disabled={!canEditTasks || pendingField !== null} value={displayTask.priority} onChange={updatePriority} />
+        <TaskDueDateCell title={task.title} value={displayDueDate} status={displayTask.status} pending={pendingField === "dueDate"} disabled={!canEditTasks || pendingField !== null} onChange={updateDueDate} />
+        <TaskAssigneeSelect ariaLabel={`Cambiar responsable de ${task.title}`} options={assigneeOptions} disabled={!canEditTasks || pendingField !== null || members.length === 0} value={displayAssigneeId} onChange={updateAssignee} />
+        <TaskRowActions onOpen={onOpen} onStartPomodoro={onStartPomodoro} taskTitle={task.title} />
       </div>
-
-      <button
-        className="hidden w-full min-w-0 max-w-full overflow-hidden rounded-md text-left md:block"
-        onClick={onOpen}
-        type="button"
-      >
-        <span
-          className={cn(
-            "block truncate text-[13px] font-medium text-[#2f3b45]",
-            completed && "text-[#858d91] line-through",
-          )}
-        >
-          {task.title}
-        </span>
-      </button>
-      <div className="hidden min-w-0 md:block">
-        <TaskStatusSelect
-          ariaLabel={`Cambiar estado de ${task.title}`}
-          className="h-6 w-fit max-w-full px-2 text-[10px]"
-          disabled={!canEditTasks || pendingField !== null}
-          onChange={updateStatus}
-          value={displayTask.status}
-        />
-      </div>
-      <div className="hidden min-w-0 md:block">
-        <TaskPrioritySelect
-          ariaLabel={`Cambiar prioridad de ${task.title}`}
-          className="h-6 w-fit max-w-full px-2 text-[10px]"
-          disabled={!canEditTasks || pendingField !== null}
-          onChange={updatePriority}
-          value={displayTask.priority}
-        />
-      </div>
-      <div className="hidden min-w-0 md:block">
-        <TaskDueDateCell
-          className="w-full"
-          disabled={!canEditTasks || pendingField !== null}
-          onChange={updateDueDate}
-          pending={pendingField === "dueDate"}
-          status={displayTask.status}
-          title={task.title}
-          value={displayDueDate}
-        />
-      </div>
-      <div className="hidden min-w-0 md:block">
-        <TaskAssigneeSelect
-          ariaLabel={`Cambiar responsable de ${task.title}`}
-          className="w-full max-w-full justify-start text-left text-[11px]"
-          disabled={
-            !canEditTasks || pendingField !== null || members.length === 0
-          }
-          onChange={updateAssignee}
-          options={assigneeOptions}
-          value={displayAssigneeId}
-        />
-      </div>
-      <div className="hidden justify-end md:flex">
-        <TaskRowActions
-          onOpen={onOpen}
-          onStartPomodoro={onStartPomodoro}
-          taskTitle={task.title}
-        />
-      </div>
-    </article>
-  );
+    </details>
+  </article>;
 }
 
 function TaskDueDateCell({

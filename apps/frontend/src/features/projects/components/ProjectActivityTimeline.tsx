@@ -1,9 +1,8 @@
 "use client";
 
-import { Activity, CheckCircle2, FileText, Link2, MessageSquare, Pencil, UserPlus } from "lucide-react";
-import { Avatar } from "@/components/ui/Avatar";
+import { Activity } from "lucide-react";
 import type { ProjectActivity } from "@/types/entities";
-import { formatDateTime } from "@/lib/utils";
+import { localDateKey } from "@/lib/utils";
 
 const labels: Record<string, string> = {
   PROJECT_CREATED: "creó el proyecto",
@@ -26,17 +25,21 @@ const labels: Record<string, string> = {
   RESOURCE_DELETED: "eliminó un recurso",
 };
 
-function iconFor(type: string) {
-  if (type.startsWith("TASK") || type.startsWith("SUBTASK")) return CheckCircle2;
-  if (type.startsWith("NOTE")) return FileText;
-  if (type.startsWith("MEMBER")) return UserPlus;
-  if (type.startsWith("COMMENT")) return MessageSquare;
-  if (type.startsWith("RESOURCE")) return Link2;
-  if (type === "PROJECT_UPDATED") return Pencil;
-  return Activity;
+function category(type: string) {
+  if (type.startsWith("TASK") || type.startsWith("SUBTASK")) return "Tarea";
+  if (type.startsWith("NOTE")) return "Nota";
+  if (type.startsWith("MEMBER")) return "Equipo";
+  if (type.startsWith("COMMENT")) return "Conversación";
+  if (type.startsWith("RESOURCE")) return "Recurso";
+  return "Proyecto";
 }
 
 export function ProjectActivityTimeline({ activities }: { activities: ProjectActivity[] }) {
-  if (activities.length === 0) return <div className="project-panel flex min-h-56 flex-col items-center justify-center gap-2 text-center"><Activity className="text-[#1e3a5f]" size={24} /><p className="text-[13px] font-medium text-[#2f3b45]">Aún no hay actividad.</p><p className="text-[12px] text-[#5f6872]">Los cambios del proyecto aparecerán aquí.</p></div>;
-  return <div className="project-panel divide-y divide-[#e7e9e8] p-2 sm:p-4">{activities.map((item) => { const Icon = iconFor(item.type); return <article className="flex min-w-0 gap-3 px-2 py-4 sm:px-3" key={item.id}><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e7e9e8] text-[#1e3a5f]"><Icon size={15} /></span><Avatar avatarUrl={item.actor.avatarUrl} email={item.actor.email} name={item.actor.name} size="sm" /><p className="min-w-0 flex-1 break-words text-[13px] leading-5 text-[#5f6872] [overflow-wrap:anywhere]"><strong className="font-semibold text-[#2f3b45]">{item.actor.name ?? item.actor.email}</strong> {labels[item.type] ?? "hizo un cambio"}{item.entityTitle && <strong className="font-semibold text-[#2f3b45]">: {item.entityTitle}</strong>}<span className="mt-1 block text-[11px] text-[#858d91]">{formatDateTime(item.createdAt)}</span></p></article>; })}</div>;
+  if (!activities.length) return <div className="flex min-h-56 flex-col items-center justify-center gap-3"><Activity size={24} /><p className="project-muted">Aún no hay actividad.</p></div>;
+  const groups = new Map<string, ProjectActivity[]>();
+  for (const item of activities) { const day = localDateKey(item.createdAt); groups.set(day, [...(groups.get(day) ?? []), item]); }
+  return <div>{[...groups].map(([day,items]) => <section key={day} className="border-b border-outline-variant last:border-0 py-3">
+    <p className="project-eyebrow">{new Date(day+"T12:00:00").toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long"})}</p>
+    {items.map(item => <article className="project-row" key={item.id}><p>{item.actor.name ?? item.actor.email} {labels[item.type] ?? "hizo un cambio"}{item.entityTitle ? ` «${item.entityTitle}»` : ""}<small>{new Date(item.createdAt).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})} · {category(item.type)} del proyecto</small></p><span>{item.type === "TASK_COMPLETED" ? "Completada" : category(item.type)}</span></article>)}
+  </section>)}</div>;
 }

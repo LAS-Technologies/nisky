@@ -102,15 +102,16 @@ export function MembersPanel({ project }: { project: Project }) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="project-members project-stack">
+      <section className="project-panel min-h-[400px]">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-label-caps text-label-caps text-on-surface-variant">MIEMBROS</p>
+        <h2>Personas del proyecto</h2>
         {!membersQuery.isLoading && members.length > 0 && (
           <span className="font-data-mono text-data-mono text-[11px] text-on-surface-variant">{members.length}</span>
         )}
       </div>
 
-      {membersQuery.isLoading ? (
+      {membersQuery.isError ? <div role="alert" className="project-stack mt-4"><p>No pudimos cargar el equipo.</p><button className="project-button" onClick={() => void membersQuery.refetch()}>Reintentar</button></div> : membersQuery.isLoading ? (
         <MembersSkeleton />
       ) : (
         <div className="divide-y divide-outline-variant">
@@ -118,7 +119,7 @@ export function MembersPanel({ project }: { project: Project }) {
             const isSelf = member.userId === user?.id;
             const canManage = isOwner && !isSelf;
             return (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-2 py-2.5 -mx-2 hover:bg-surface-container-low" key={member.id}>
+              <div className="project-member-row flex flex-wrap items-center gap-x-3 gap-y-2 px-2 py-2.5 hover:bg-surface-container-low" key={member.id}>
                 <Avatar avatarUrl={member.user.avatarUrl} email={member.user.email} name={member.user.name} size="md" />
                 <span className="min-w-0 flex-1 basis-40">
                   <span className="block truncate font-body-sm text-body-sm text-on-surface">
@@ -174,11 +175,13 @@ export function MembersPanel({ project }: { project: Project }) {
         </div>
       )}
 
+      </section>
+      {canManageMembers && invitationsQuery.isError && <div className="project-panel project-card" role="alert"><p>No pudimos cargar las invitaciones.</p><button className="project-button mt-3" onClick={() => void invitationsQuery.refetch()}>Reintentar invitaciones</button></div>}
       {canManageMembers && pendingInvitations.length > 0 && (
-        <div className="pt-1">
+        <div className="project-panel min-h-[190px]">
           <p className="flex items-center gap-1.5 py-1 font-label-caps text-label-caps text-on-surface-variant">
             <UserRoundPlus size={13} />
-            INVITACIONES PENDIENTES ({pendingInvitations.length})
+            Invitaciones pendientes ({pendingInvitations.length})
           </p>
           <div className="divide-y divide-outline-variant">
             {pendingInvitations.map((invitation) => (
@@ -218,7 +221,7 @@ export function MembersPanel({ project }: { project: Project }) {
       )}
 
       {canManageMembers ? (
-        <div className="flex gap-2 pt-1">
+        <details className="project-panel project-card"><summary className="project-small cursor-pointer">Invitar por email o usuario</summary><div className="flex gap-2 pt-4">
           <div className="relative min-w-0 flex-1">
             <AtSign size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
             <input
@@ -235,13 +238,13 @@ export function MembersPanel({ project }: { project: Project }) {
           </div>
           <button
             className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-outline-variant px-2.5 font-body-sm text-body-sm text-primary hover:bg-surface-container-high disabled:opacity-50"
-            disabled={!email.trim()}
+            disabled={!email.trim() || mutations.invite.isPending}
             onClick={() => void invite()}
             type="button"
           >
             <Mail size={15} /> Invitar
           </button>
-        </div>
+        </div></details>
       ) : project.isDefault ? <p className="border-t border-outline-variant pt-3 font-body-sm text-body-sm text-on-surface-variant">Este es tu espacio personal; no tiene miembros compartidos.</p> : null}
 
       {!isOwner && (

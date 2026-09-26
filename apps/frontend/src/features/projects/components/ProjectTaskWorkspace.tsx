@@ -1,14 +1,13 @@
 "use client";
 
-import { Check, Circle, Filter, Plus, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { Check, Circle, Plus, RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
 import type { TaskUpdatePayload } from "@/features/tasks/api/tasks";
 import { TaskPagination } from "@/features/tasks/components/TaskPagination";
 import type { PaginationMeta, ProjectMember, Task, TaskPriority } from "@/types/entities";
-import { cn } from "@/lib/utils";
 import { ProjectTaskRow } from "./ProjectTaskRow";
 
-export type ProjectTaskMode = "ACTIVE" | "MINE" | "ALL";
+export type ProjectTaskMode = "ACTIVE" | "MINE" | "ALL" | "PENDING" | "IN_PROGRESS" | "COMPLETED";
 
 export function ProjectTaskWorkspace({
   tasks,
@@ -38,7 +37,6 @@ export function ProjectTaskWorkspace({
   onUpdateTask,
   onStartPomodoro,
   onPageChange,
-  onCreateTask,
   onQuickAdd,
 }: {
   tasks: Task[];
@@ -72,7 +70,6 @@ export function ProjectTaskWorkspace({
   onQuickAdd: (title: string) => Promise<void>;
 }) {
   const quickAddRef = useRef<HTMLInputElement>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [quickTitle, setQuickTitle] = useState("");
   const hasAdvancedFilters = priority !== "ALL" || Boolean(assigneeId) || Boolean(dueFrom) || Boolean(dueTo);
   const submitQuickAdd = async () => {
@@ -87,75 +84,31 @@ export function ProjectTaskWorkspace({
     }
   };
 
-  return (
-    <section className="min-w-0 max-w-full">
-        <div className="mb-4 flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(["ACTIVE", "MINE", "ALL"] as const).map((value) => (
-               <button className={cn("min-h-9 rounded-full border px-3.5 text-[12px] font-semibold transition-colors", mode === value ? "border-[#1e3a5f] bg-[#1e3a5f] text-white" : "border-[#dde1e2] bg-white text-[#5f6872] hover:border-[#b8c0c4] hover:text-[#1e3a5f]")} key={value} onClick={() => onModeChange(value)} type="button">
-                {value === "ALL" ? "Todas" : value === "MINE" ? "Mis tareas" : "Activas"}
-              </button>
-            ))}
-            {isFetching && <span className="ml-1 text-[11px] text-[#8a95a8]">Actualizando...</span>}
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label className="relative min-w-0 flex-1">
-               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#858d91]" size={16} />
-              <span className="sr-only">Buscar tareas del proyecto</span>
-               <input aria-label="Buscar tareas del proyecto" className="h-10 w-full rounded-sm border border-[#dde1e2] bg-white pl-9 pr-3 text-[13px] text-[#1f2933] outline-none placeholder:text-[#9aa2a5] focus:border-[#1e3a5f]" onChange={(event) => onSearchChange(event.target.value)} placeholder="Buscar tareas..." type="search" value={search} />
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                 <button aria-expanded={filtersOpen} className={cn("flex h-10 items-center gap-1.5 rounded-md border bg-white px-3 text-[13px] font-semibold transition-colors", filtersOpen || hasAdvancedFilters ? "border-[#1e3a5f] text-[#1e3a5f]" : "border-[#dde1e2] text-[#5f6872] hover:border-[#b8c0c4] hover:text-[#1e3a5f]")} onClick={() => setFiltersOpen((open) => !open)} type="button">
-                    <SlidersHorizontal size={15} /> Filtros {hasAdvancedFilters && <span className="h-1.5 w-1.5 rounded-full bg-[#1e3a5f]" />}
-                 </button>
-                  {filtersOpen && <AdvancedFilters assigneeId={assigneeId} dueFrom={dueFrom} dueTo={dueTo} members={members} onAssigneeChange={onAssigneeChange} onClose={() => setFiltersOpen(false)} onDueFromChange={onDueFromChange} onDueToChange={onDueToChange} onPriorityChange={onPriorityChange} priority={priority} onReset={onResetFilters} />}
-               </div>
-               <button className="hidden h-10 shrink-0 items-center gap-1.5 rounded-md bg-[#1e3a5f] px-3.5 text-[13px] font-semibold text-white shadow-[0_2px_6px_rgba(30,58,95,0.18)] hover:bg-[#152c48] sm:inline-flex" onClick={onCreateTask} type="button">
-                 <Plus size={16} /> Nueva tarea
-               </button>
-              </div>
-           </div>
-        </div>
-
-        <div className="project-panel min-w-0 max-w-full overflow-visible">
-           <div className="hidden rounded-t-lg grid-cols-[44px_minmax(0,1fr)_7.25rem_6.5rem_7.5rem_7rem_2.75rem] items-center gap-2 border-b border-[#e7e9e8] bg-[#fafaf8] px-3 py-3 text-[10px] font-bold uppercase tracking-[0.08em] text-[#858d91] md:grid lg:px-4">
-            <span />
-            <span>Tarea</span>
-            <span>Estado</span>
-            <span>Prioridad</span>
-            <span>Entrega</span>
-            <span>Responsable</span>
-            <span />
-          </div>
-           {isLoading ? <TaskSkeleton /> : isError ? <TaskError onRetry={onRetry} /> : tasks.length === 0 ? <TaskEmpty hasFilters={mode === "MINE" || Boolean(search) || hasAdvancedFilters} mode={mode} onReset={onResetFilters} /> : (
-             <>
-               <div className="divide-y divide-[#e7e9e8]">
-                      {tasks.map((task) => <ProjectTaskRow canEditTasks={canEditTasks} isPreviewed={previewedTaskId === task.id} key={task.id} members={members} onOpen={() => onOpen(task)} onStartPomodoro={() => onStartPomodoro(task)} onToggle={onToggle} onUpdateTask={onUpdateTask} task={task} />)}
-              </div>
-              {meta && <TaskPagination isFetching={isFetching} meta={meta} onPageChange={onPageChange} />}
-            </>
-          )}
-          <QuickAddInput inputRef={quickAddRef} onChange={setQuickTitle} onSubmit={() => void submitQuickAdd()} value={quickTitle} />
-        </div>
-    </section>
-  );
-}
-
-function AdvancedFilters({ assigneeId, dueFrom, dueTo, members, priority, onAssigneeChange, onDueFromChange, onDueToChange, onPriorityChange, onClose, onReset }: { assigneeId: string; dueFrom: string; dueTo: string; members: ProjectMember[]; priority: TaskPriority | "ALL"; onAssigneeChange: (value: string) => void; onDueFromChange: (value: string) => void; onDueToChange: (value: string) => void; onPriorityChange: (value: TaskPriority | "ALL") => void; onClose: () => void; onReset: () => void }) {
-  return (
-    <div className="absolute right-0 top-12 z-30 w-[min(19rem,calc(100vw-2.5rem))] rounded-lg border border-[#dde1e2] bg-white p-4 shadow-[0_12px_32px_rgba(31,41,51,0.12)]">
-      <div className="flex items-center justify-between gap-3"><p className="text-[13px] font-semibold text-[#1f2933]">Filtros avanzados</p><Filter className="text-[#778186]" size={15} /></div>
-      <label className="mt-4 block"><span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#858d91]">Prioridad</span><select aria-label="Filtrar por prioridad" className="mt-1 h-10 w-full rounded-sm border border-[#dde1e2] bg-white px-3 text-[13px] text-[#2f3b45] outline-none focus:border-[#1e3a5f]" onChange={(event) => onPriorityChange(event.target.value as TaskPriority | "ALL")} value={priority}><option value="ALL">Todas las prioridades</option><option value="URGENT">Urgente</option><option value="HIGH">Alta</option><option value="NORMAL">Normal</option><option value="LOW">Baja</option></select></label>
-      <label className="mt-3 block"><span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#858d91]">Asignado</span><select aria-label="Filtrar por asignado" className="mt-1 h-10 w-full rounded-sm border border-[#dde1e2] bg-white px-3 text-[13px] text-[#2f3b45] outline-none focus:border-[#1e3a5f]" onChange={(event) => onAssigneeChange(event.target.value)} value={assigneeId}><option value="">Todas las personas</option><option value="__unassigned__">Sin asignar</option>{members.map((member) => <option key={member.userId} value={member.userId}>{member.user.name ?? member.user.email}</option>)}</select></label>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <label className="block"><span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#858d91]">Entrega desde</span><input aria-label="Filtrar entrega desde" className="mt-1 h-10 w-full rounded-sm border border-[#dde1e2] bg-white px-2.5 text-[12px] text-[#2f3b45] outline-none focus:border-[#1e3a5f]" max={dueTo || undefined} onChange={(event) => onDueFromChange(event.target.value)} type="date" value={dueFrom} /></label>
-        <label className="block"><span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#858d91]">Entrega hasta</span><input aria-label="Filtrar entrega hasta" className="mt-1 h-10 w-full rounded-sm border border-[#dde1e2] bg-white px-2.5 text-[12px] text-[#2f3b45] outline-none focus:border-[#1e3a5f]" min={dueFrom || undefined} onChange={(event) => onDueToChange(event.target.value)} type="date" value={dueTo} /></label>
-      </div>
-      <div className="mt-4 flex justify-between gap-2 border-t border-[#e7e9e8] pt-3"><button className="rounded-md px-2 py-1 text-[12px] font-semibold text-[#5f6872] hover:bg-[#eff1f0] hover:text-[#1e3a5f]" onClick={onReset} type="button">Limpiar</button><button className="rounded-md bg-[#1e3a5f] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#152c48]" onClick={onClose} type="button">Aplicar</button></div>
+  return <section className="project-task-layout">
+    <div className="project-tabs" role="group" aria-label="Estado de tareas">
+      {(["ALL","PENDING","IN_PROGRESS","COMPLETED","MINE","ACTIVE"] as const).map(value => <button className="project-button" aria-pressed={mode === value} key={value} onClick={() => onModeChange(value)}>{{ALL:"Todas",PENDING:"Pendientes",IN_PROGRESS:"En curso",COMPLETED:"Completadas",MINE:"Mis tareas",ACTIVE:"Activas"}[value]}</button>)}
+      {isFetching && <span className="project-small self-center">Actualizando…</span>}
     </div>
-  );
+    <aside className="project-panel project-card project-task-filters">
+      <h2>Trabaja con intención</h2><p className="project-small mb-4">Filtra por persona o estado para encontrar tu siguiente paso.</p>
+      <label className="project-small block mb-4">Responsable<select className="project-input mt-2" aria-label="Filtrar por asignado" value={assigneeId} onChange={e => onAssigneeChange(e.target.value)}><option value="">Todas las personas</option><option value="__unassigned__">Sin asignar</option>{members.map(m => <option key={m.userId} value={m.userId}>{m.user.name ?? m.user.email}</option>)}</select></label>
+      <label className="project-small block">Prioridad<select className="project-input mt-2" aria-label="Filtrar por prioridad" value={priority} onChange={e => onPriorityChange(e.target.value as TaskPriority | "ALL")}><option value="ALL">Todas</option><option value="URGENT">Urgente</option><option value="HIGH">Alta</option><option value="NORMAL">Normal</option><option value="LOW">Baja</option></select></label>
+      <details className="mt-5"><summary className="project-small cursor-pointer">Buscar y filtrar por fecha</summary><div className="project-stack mt-4">
+        <input className="project-input" aria-label="Buscar tareas del proyecto" type="search" placeholder="Buscar tareas…" value={search} onChange={e => onSearchChange(e.target.value)} />
+        <label className="project-small">Entrega desde<input className="project-input mt-2" aria-label="Filtrar entrega desde" type="date" max={dueTo || undefined} value={dueFrom} onChange={e => onDueFromChange(e.target.value)} /></label>
+        <label className="project-small">Entrega hasta<input className="project-input mt-2" aria-label="Filtrar entrega hasta" type="date" min={dueFrom || undefined} value={dueTo} onChange={e => onDueToChange(e.target.value)} /></label>
+      </div></details>
+      {(hasAdvancedFilters || search || mode !== "ALL") && <button className="project-button mt-4" onClick={onResetFilters}>Limpiar filtros</button>}
+    </aside>
+    <div className="project-panel project-card project-task-list">
+      <h2>Tareas del proyecto</h2>
+      {isLoading ? <TaskSkeleton /> : isError ? <TaskError onRetry={onRetry} /> : tasks.length === 0 ? <TaskEmpty hasFilters={mode !== "ALL" || Boolean(search) || hasAdvancedFilters} mode={mode} onReset={onResetFilters} /> : <>
+        {tasks.map(task => <ProjectTaskRow key={task.id} canEditTasks={canEditTasks} isPreviewed={previewedTaskId === task.id} members={members} onOpen={() => onOpen(task)} onStartPomodoro={() => onStartPomodoro(task)} onToggle={onToggle} onUpdateTask={onUpdateTask} task={task} />)}
+        {meta && <TaskPagination isFetching={isFetching} meta={meta} onPageChange={onPageChange} />}
+      </>}
+      {canEditTasks && <details className="mt-4"><summary className="project-small cursor-pointer">Añadir una tarea rápida</summary><QuickAddInput inputRef={quickAddRef} onChange={setQuickTitle} onSubmit={() => void submitQuickAdd()} value={quickTitle} /></details>}
+    </div>
+  </section>;
 }
 
 function QuickAddInput({ inputRef, value, onChange, onSubmit }: { inputRef: React.RefObject<HTMLInputElement | null>; value: string; onChange: (value: string) => void; onSubmit: () => void }) {

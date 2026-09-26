@@ -8,11 +8,10 @@ import { useAuth } from "@/context/AuthProvider";
 import type { Project, ProjectResource } from "@/types/entities";
 import { useProjectResourceMutations, useProjectResources } from "../hooks/useProjectWorkspace";
 
-export function ProjectResources({ project }: { project: Project }) {
+export function ProjectResources({ project, formOpen, onFormOpenChange: setFormOpen }: { project: Project; formOpen: boolean; onFormOpenChange: (value: boolean) => void }) {
   const { user } = useAuth();
   const query = useProjectResources(project.id);
   const mutations = useProjectResourceMutations(project.id);
-  const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
@@ -49,18 +48,8 @@ export function ProjectResources({ project }: { project: Project }) {
   };
 
   return (
-    <section className="min-w-0 max-w-3xl">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="project-eyebrow">REFERENCIAS</p>
-           <h2 className="mt-1 text-[19px] font-semibold text-[#1f2933]">Recursos del proyecto</h2>
-           <p className="mt-1 text-[13px] text-[#5f6872]">Enlaces útiles para mantener el contexto cerca del trabajo.</p>
-        </div>
-         <button className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[#1e3a5f] px-3.5 text-[13px] font-semibold text-white hover:bg-[#152c48]" onClick={() => setFormOpen((value) => !value)} type="button">
-          <Plus size={16} /> Añadir enlace
-        </button>
-      </div>
-
+    <section className="project-panel project-card min-h-[480px]">
+      <h2>Enlaces y materiales</h2>
       {formOpen && (
         <div className="project-panel mb-4 space-y-3 p-5">
           <input aria-label="Título del recurso" className="project-input" onChange={(event) => setTitle(event.target.value)} placeholder="Título del enlace" value={title} />
@@ -93,17 +82,17 @@ export function ProjectResources({ project }: { project: Project }) {
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="divide-y divide-outline-variant">
           {resources.map((resource) => (
-            <article className="project-panel flex min-w-0 items-start gap-3 p-5" key={resource.id}>
+            <article className="flex min-w-0 items-center gap-4 px-4 py-6" key={resource.id}>
                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e7e9e8] text-[#1e3a5f]"><Link2 size={17} /></span>
               <div className="min-w-0 flex-1">
-                 <a className="inline-flex max-w-full items-center gap-1.5 text-[14px] font-semibold text-[#2f3b45] hover:text-[#1e3a5f]" href={resource.url} rel="noreferrer" target="_blank">
+                 <a className="inline-flex max-w-full items-center gap-1.5 text-[15px] font-normal text-[#2f3b45] hover:text-[#1e3a5f]" href={resource.url} rel="noreferrer" target="_blank">
                   <span className="min-w-0 truncate break-words [overflow-wrap:anywhere]">{resource.title}</span>
                   <ExternalLink className="shrink-0" size={13} />
                 </a>
                  <p className="mt-1 break-all text-[12px] text-[#1e3a5f]">{resource.url}</p>
-                 {resource.description && <p className="mt-2 break-words text-[13px] leading-5 text-[#5f6872] [overflow-wrap:anywhere]">{resource.description}</p>}
+                 {resource.description && <p className="mt-2 break-words text-[13px] leading-[18px] text-[#5f6872] [overflow-wrap:anywhere]">{resource.description}</p>}
                  <p className="mt-3 break-words text-[11px] text-[#858d91] [overflow-wrap:anywhere]">Añadido por {resource.createdBy.name ?? resource.createdBy.email}</p>
               </div>
               {(resource.createdById === user?.id || project.userId === user?.id) && (
@@ -116,6 +105,7 @@ export function ProjectResources({ project }: { project: Project }) {
         </div>
       )}
 
+      <p className="project-small mt-4">Añade enlaces útiles y una descripción para que todos sepan dónde encontrar lo necesario.</p>
       {deleteTarget && (
         <ConfirmModal
           cancelLabel="Cancelar"

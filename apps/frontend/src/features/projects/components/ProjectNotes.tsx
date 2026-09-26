@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Plus } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -78,29 +78,8 @@ export function ProjectNotes({ project }: { project: Project }) {
 
   return (
     <section className="min-w-0">
-      <header className="flex flex-col gap-4 bg-transparent sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">NOTAS DEL PROYECTO</p>
-          <h2 className="mt-1 font-display-hero-mobile text-display-hero-mobile text-on-surface sm:font-display-hero sm:text-display-hero">Notas y referencias</h2>
-          <p className="mt-2 max-w-xl font-body-sm text-body-sm text-on-surface-variant">Contexto compartido para las personas que trabajan en este proyecto.</p>
-        </div>
-        <div className="flex w-full items-center gap-3 sm:w-auto">
-          <input
-            aria-label="Buscar notas del proyecto"
-            className="field h-10 w-full rounded-full border-0 bg-surface-container-lowest px-4 shadow-sm sm:w-56"
-            onChange={(event) => updateSearch(event.target.value)}
-            placeholder="Buscar notas..."
-            type="search"
-            value={search}
-          />
-          <button className="hidden h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-4 py-2 font-body-sm text-body-sm text-on-primary shadow-sm transition-colors hover:bg-primary/90 sm:inline-flex" onClick={openNew} type="button">
-            <Plus size={16} /> Nueva nota
-          </button>
-        </div>
-      </header>
-
-      <div className="mt-5 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-        <KnowledgeSidebar active={filter} facets={facetsQuery.data} onFilter={updateFilter} />
+      <details className="mb-5"><summary className="project-small cursor-pointer">Buscar y filtrar notas</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><input aria-label="Buscar notas del proyecto" className="project-input" value={search} onChange={e => updateSearch(e.target.value)} placeholder="Buscar notas…" type="search" /><KnowledgeSidebar active={filter} facets={facetsQuery.data} onFilter={updateFilter} /></div></details>
+      <div>
         <div className="min-w-0">
           {query.isLoading ? (
             <div className="rounded-lg border border-outline-variant bg-surface-container-lowest p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Cargando notas...</div>
@@ -117,9 +96,9 @@ export function ProjectNotes({ project }: { project: Project }) {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 content-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="project-grid project-note-grid">
                 {notes.map((note) => (
-                    <NoteCard canEdit={note.user?.id === user?.id} canEditContent={note.user?.id === user?.id || note.collaboratorsCanEdit} key={note.id} note={note} onEdit={openEdit} onOpen={openPreview} onTogglePin={async (item) => { await togglePin(item); }} showAuthor />
+                    <NoteCard projectStyle canEdit={note.user?.id === user?.id} canEditContent={note.user?.id === user?.id || note.collaboratorsCanEdit} key={note.id} note={note} onEdit={openEdit} onOpen={openPreview} onTogglePin={async (item) => { await togglePin(item); }} showAuthor />
                 ))}
               </div>
               <NotePagination isFetching={query.isFetching} meta={query.data?.meta} onPageChange={setPage} />
@@ -128,6 +107,7 @@ export function ProjectNotes({ project }: { project: Project }) {
         </div>
       </div>
 
+      <section className="project-panel project-card mt-6 min-h-[210px]"><h2>Conocimiento que permanece</h2><p className="project-muted">Las notas del proyecto reúnen decisiones, referencias e ideas para que el equipo pueda volver a ellas.</p><p className="project-muted mt-4">Selecciona una nota para leerla o editarla según tus permisos.</p></section>
       <div className="sm:hidden">
           <FAB ariaLabel="Nueva nota" onClick={openNew} raised={Boolean(previewing)} />
        </div>

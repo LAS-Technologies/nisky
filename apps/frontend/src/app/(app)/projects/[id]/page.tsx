@@ -3,22 +3,14 @@
 import { Suspense, useDeferredValue, useRef, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ColorPicker } from "@/components/ui/ColorPicker";
+import { ProjectFormDialog } from "@/features/projects/components/ProjectFormDialog";
+import { ProjectInvitationsDialog } from "@/features/projects/components/ProjectInvitationsDialog";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { FAB } from "@/components/ui/FAB";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthProvider";
 import { CommentThread } from "@/features/comments/CommentThread";
 import { MembersPanel } from "@/features/projects/components/MembersPanel";
 import { ProjectActivityTimeline } from "@/features/projects/components/ProjectActivityTimeline";
-import { ProjectContextPanel } from "@/features/projects/components/ProjectContextPanel";
 import { ProjectHeader } from "@/features/projects/components/ProjectHeader";
 import { ProjectNotes } from "@/features/projects/components/ProjectNotes";
 import { ProjectOverview } from "@/features/projects/components/ProjectOverview";
@@ -54,7 +46,7 @@ function ProjectDetailPageContent() {
   const taskMutations = useTaskMutations();
 
   const [taskPage, setTaskPage] = useState(1);
-  const [taskMode, setTaskMode] = useState<ProjectTaskMode>("ACTIVE");
+  const [taskMode, setTaskMode] = useState<ProjectTaskMode>("ALL");
   const [taskSearch, setTaskSearch] = useState("");
   const [taskPriority, setTaskPriority] = useState<TaskPriority | "ALL">("ALL");
   const [taskAssigneeId, setTaskAssigneeId] = useState("");
@@ -62,12 +54,8 @@ function ProjectDetailPageContent() {
   const [taskDueTo, setTaskDueTo] = useState("");
   const [previewingTask, setPreviewingTask] = useState<Task | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editTargetDate, setEditTargetDate] = useState("");
-  const [editColor, setEditColor] = useState("#1e3a5f");
-  const [editTargetHours, setEditTargetHours] = useState("");
-  const [editTargetMinutes, setEditTargetMinutes] = useState("");
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [resourceFormOpen, setResourceFormOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const creatingTaskRef = useRef(false);
 
@@ -80,7 +68,7 @@ function ProjectDetailPageContent() {
     {
       projectId,
       page: taskPage,
-      status: taskMode === "ALL" ? undefined : ["PENDING", "IN_PROGRESS"],
+      status: taskMode === "ALL" ? undefined : taskMode === "MINE" || taskMode === "ACTIVE" ? ["PENDING", "IN_PROGRESS"] : [taskMode],
       assigneeId: taskMode === "MINE" ? user?.id : taskAssigneeId || undefined,
        priority: taskPriority === "ALL" ? undefined : taskPriority,
        q: deferredSearch.trim() || undefined,
@@ -93,7 +81,7 @@ function ProjectDetailPageContent() {
   );
 
   if (!project) {
-    return <div className="flex h-full items-center justify-center bg-[#f7f7f5] text-[13px] text-[#5f6872]">{projectQuery.isLoading ? "Cargando proyecto..." : "El proyecto no existe o no tienes acceso."}</div>;
+    return <div className="flex h-full items-center justify-center bg-[#f8fafe] text-[13px] text-[#5f6872]">{projectQuery.isLoading ? "Cargando proyecto..." : "El proyecto no existe o no tienes acceso."}</div>;
   }
 
   const navigateToTab = (nextTab: ProjectTab) => {
@@ -129,10 +117,6 @@ function ProjectDetailPageContent() {
     setPreviewingTask(null);
     void createTaskAndOpen();
   };
-  const saveProjectDescription = async (description: string) => {
-    await projectMutations.update.mutateAsync({ id: project.id, payload: { description: description || null } });
-  };
-
   const quickAdd = async (title: string) => {
     try {
       await taskMutations.create.mutateAsync({ title, status: "PENDING", priority: "NORMAL", projectId: project.id, pomodoroEstimate: 0 });
@@ -167,35 +151,7 @@ function ProjectDetailPageContent() {
     }
   };
 
-  const openEditProject = () => {
-    setEditName(project.name);
-    setEditDescription(project.description ?? "");
-    setEditTargetDate(project.targetDate?.slice(0, 10) ?? "");
-    setEditColor(project.color);
-    setEditTargetHours(project.weeklyTargetMinutes ? Math.floor(project.weeklyTargetMinutes / 60).toString() : "");
-    setEditTargetMinutes(project.weeklyTargetMinutes ? (project.weeklyTargetMinutes % 60).toString() : "");
-    setEditOpen(true);
-  };
-
-  const saveProject = async () => {
-    try {
-      const totalMinutes = (parseInt(editTargetHours, 10) || 0) * 60 + (parseInt(editTargetMinutes, 10) || 0);
-      await projectMutations.update.mutateAsync({
-        id: project.id,
-        payload: {
-          name: editName.trim(),
-          description: editDescription.trim() || null,
-          targetDate: editTargetDate || null,
-          color: editColor,
-          weeklyTargetMinutes: totalMinutes > 0 ? totalMinutes : null,
-        },
-      });
-      setEditOpen(false);
-      toast.success("Proyecto actualizado");
-    } catch {
-      toast.error("No pudimos guardar los cambios.");
-    }
-  };
+  const openEditProject = () => setEditOpen(true);
 
   const removeProject = async () => {
     try {
@@ -219,13 +175,19 @@ function ProjectDetailPageContent() {
 
   return (
      <ProjectWorkspaceShell>
-       <ProjectHeader canDelete={permissions.canDeleteProject} canEdit={permissions.canEditProject} members={members} onBack={() => router.push("/projects")} onDelete={() => setConfirmDelete(true)} onEdit={openEditProject} onSaveDescription={saveProjectDescription} project={project} />
+       <ProjectHeader project={project} canEdit={permissions.canEditProject} canDelete={permissions.canDeleteProject} onEdit={openEditProject} onDelete={() => setConfirmDelete(true)}
+         subtitle={{ overview: "Un espacio compartido para avanzar con intención.", tasks: "Tareas y prioridades del equipo.", notes: "Decisiones e ideas en su contexto.", resources: "Enlaces y materiales que nos ayudan a avanzar.", activity: "El recorrido del proyecto, en un solo lugar.", team: "Personas que comparten este objetivo.", chat: "Comparte avances sin perder el contexto." }[activeTab]}
+         action={activeTab === "overview" && permissions.canEditProject ? <button className="project-button" data-primary="true" onClick={openEditProject}>Editar proyecto</button>
+           : activeTab === "tasks" && permissions.canCreateTasks ? <button className="project-button" data-primary="true" disabled={taskMutations.create.isPending} onClick={openCreateTask}>Nueva tarea</button>
+           : activeTab === "notes" ? <button className="project-button" data-primary="true" onClick={() => router.push(`/knowledge/new?projectId=${encodeURIComponent(project.id)}&returnTo=${encodeURIComponent(pathname+"?tab=notes")}`)}>Nueva nota</button>
+           : activeTab === "resources" ? <button className="project-button" data-primary="true" onClick={() => setResourceFormOpen(true)}>Añadir recurso</button>
+           : activeTab === "team" && permissions.canManageMembers ? <button className="project-button" data-primary="true" onClick={() => setInviteOpen(true)}>Invitar persona</button> : undefined} />
        <ProjectSectionNav activeTab={activeTab} onNavigate={(tab) => navigateToTab(tab)} />
 
-      <main className="min-h-0 min-w-0 max-w-full flex-1 pb-8 pt-7">
+      <main className="min-h-0 min-w-0 max-w-full flex-1">
         {activeTab === "overview" && <ProjectOverview isError={summaryQuery.isError} onOpenTask={openTask} onOpenTasks={() => navigateToTab("tasks")} onRetry={() => void summaryQuery.refetch()} summary={summary ?? null} />}
         {activeTab === "tasks" && (
-          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
+          <div>
             <ProjectTaskWorkspace
                  assigneeId={taskAssigneeId}
                 dueFrom={taskDueFrom}
@@ -259,14 +221,13 @@ function ProjectDetailPageContent() {
               search={taskSearch}
               tasks={tasksQuery.data?.data ?? []}
             />
-            <ProjectContextPanel isError={summaryQuery.isError} onOpenTask={openTask} onRetry={() => void summaryQuery.refetch()} summary={summary ?? null} />
           </div>
         )}
         {activeTab === "notes" && <ProjectNotes project={project} />}
         {activeTab === "activity" && <ProjectActivityContent projectId={project.id} />}
-        {activeTab === "team" && <section className="min-w-0 max-w-3xl"><div className="mb-5"><p className="project-eyebrow">COLABORACIÓN</p><h2 className="mt-1 text-[19px] font-semibold text-[#131b2e]">Equipo del proyecto</h2><p className="mt-1 text-[13px] text-[#69758a]">Gestiona las personas que pueden trabajar con este proyecto.</p></div><div className="project-panel p-5 sm:p-6"><MembersPanel project={project} /></div></section>}
-        {activeTab === "chat" && <section className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]"><div className="project-panel flex h-[min(42rem,calc(100dvh-12rem))] min-h-[34rem] min-w-0 flex-col overflow-hidden p-5 sm:p-6"><div className="mb-5"><p className="project-eyebrow">COLABORACIÓN</p><h2 className="mt-1 text-[19px] font-semibold text-[#131b2e]">Conversación del proyecto</h2><p className="mt-1 text-[13px] text-[#69758a]">Comparte avances sin sacar la conversación del contexto.</p></div><CommentThread kind="project" id={project.id} /></div><ProjectContextPanel isError={summaryQuery.isError} onOpenTask={openTask} onRetry={() => void summaryQuery.refetch()} summary={summary ?? null} /></section>}
-        {activeTab === "resources" && <ProjectResources project={project} />}
+        {activeTab === "team" && <MembersPanel project={project} />}
+        {activeTab === "chat" && <section className="project-split project-split-narrow"><div className="project-panel project-card project-chat"><h2>Conversación del proyecto</h2><CommentThread kind="project" id={project.id} /></div><aside className="project-panel project-card"><h2>En contexto</h2><p className="font-semibold mb-4">{project.name}</p><p className="project-small mb-4">{members.length} personas en el proyecto</p><hr className="border-outline-variant mb-4" /><p className="project-eyebrow">PRÓXIMO PASO</p>{summary?.upcomingTasks[0] ? <button className="project-row" onClick={() => openTask(summary.upcomingTasks[0])}>{summary.upcomingTasks[0].title}</button> : <p className="project-muted mt-4">Sin tareas próximas.</p>}</aside></section>}
+        {activeTab === "resources" && <ProjectResources project={project} formOpen={resourceFormOpen} onFormOpenChange={setResourceFormOpen} />}
       </main>
 
       {activeTab === "tasks" && (
@@ -275,7 +236,8 @@ function ProjectDetailPageContent() {
          </div>
        )}
        {previewingTask && <TaskDetailsPanel key={previewingTask.id} onAddSubtask={async (taskId, title) => { await taskMutations.addSubtask.mutateAsync({ taskId, title }); }} onClose={() => setPreviewingTask(null)} onDelete={async (taskId) => { await taskMutations.remove.mutateAsync(taskId); }} onDeleteSubtask={async (taskId, subtaskId) => { await taskMutations.removeSubtask.mutateAsync({ taskId, subtaskId }); }} onStartPomodoro={() => router.push(`/focus?taskId=${encodeURIComponent(previewingTask.id)}&projectId=${encodeURIComponent(project.id)}`)} onToggleSubtask={async (taskId, subtaskId, completed) => { await taskMutations.toggleSubtask.mutateAsync({ taskId, subtaskId, completed }); }} onUpdateDescription={async (taskId, description) => { await taskMutations.update.mutateAsync({ id: taskId, payload: { description: description || null } }); }} onUpdateTask={async (taskId, payload) => { await taskMutations.update.mutateAsync({ id: taskId, payload }); }} onUpdateSubtask={async (taskId, subtaskId, title) => { await taskMutations.updateSubtask.mutateAsync({ taskId, subtaskId, payload: { title } }); }} task={previewingTask} />}
-      {editOpen && <EditProjectModal canRename={!project.isDefault} color={editColor} description={editDescription} name={editName} onClose={() => setEditOpen(false)} onColorChange={setEditColor} onDescriptionChange={setEditDescription} onNameChange={setEditName} onSave={() => void saveProject()} onTargetDateChange={setEditTargetDate} onTargetHoursChange={setEditTargetHours} onTargetMinutesChange={setEditTargetMinutes} targetDate={editTargetDate} targetHours={editTargetHours} targetMinutes={editTargetMinutes} />}
+      {editOpen && <ProjectFormDialog project={project} onClose={() => setEditOpen(false)} onSave={payload => projectMutations.update.mutateAsync({ id: project.id, payload })} />}
+      {inviteOpen && <ProjectInvitationsDialog open onOpenChange={setInviteOpen} project={project} />}
       {confirmDelete && <ConfirmModal cancelLabel="Cancelar" confirmLabel="Eliminar" danger loading={projectMutations.remove.isPending} message={<>¿Eliminar <strong>{project.name}</strong>? Sus tareas se moverán al proyecto personal y esta acción no se puede deshacer.</>} onClose={() => setConfirmDelete(false)} onConfirm={() => void removeProject()} title="¿Eliminar proyecto?" />}
     </ProjectWorkspaceShell>
   );
@@ -285,65 +247,7 @@ function ProjectActivityContent({ projectId }: { projectId: string }) {
   const query = useProjectActivity(projectId);
   if (query.isLoading) return <div className="project-panel h-72 animate-pulse" />;
   if (query.isError) return <div className="project-panel flex min-h-56 items-center justify-center text-[13px] text-[#c73b52]">No pudimos cargar la actividad del proyecto.</div>;
-  return <section className="min-w-0 max-w-3xl"><div className="mb-5"><p className="project-eyebrow">HISTORIAL</p><h2 className="mt-1 text-[19px] font-semibold text-[#131b2e]">Actividad reciente</h2><p className="mt-1 text-[13px] text-[#69758a]">Cambios y conversaciones registrados en el proyecto.</p></div><ProjectActivityTimeline activities={query.data?.data ?? []} /></section>;
-}
-
-function EditProjectModal({ canRename, name, description, targetDate, color, targetHours, targetMinutes, onNameChange, onDescriptionChange, onTargetDateChange, onColorChange, onTargetHoursChange, onTargetMinutesChange, onSave, onClose }: { canRename: boolean; name: string; description: string; targetDate: string; color: string; targetHours: string; targetMinutes: string; onNameChange: (value: string) => void; onDescriptionChange: (value: string) => void; onTargetDateChange: (value: string) => void; onColorChange: (value: string) => void; onTargetHoursChange: (value: string) => void; onTargetMinutesChange: (value: string) => void; onSave: () => void; onClose: () => void }) {
-  return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent
-        className="top-auto bottom-0 flex h-[min(90dvh,48rem)] max-h-[90dvh] w-full max-w-none translate-y-0 flex-col gap-0 overflow-hidden rounded-t-2xl rounded-b-none border-[#dde1e2] bg-white p-0 sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-y-1/2 sm:rounded-2xl"
-        data-keyboard-sheet
-        showCloseButton={false}
-      >
-        <DialogHeader className="flex flex-row items-center justify-between border-b border-[#e7e9e8] px-5 py-4 text-left">
-          <div>
-            <DialogTitle className="text-[17px] font-semibold text-[#1f2933]">Editar proyecto</DialogTitle>
-            <DialogDescription className="sr-only">Edita la información visible del proyecto.</DialogDescription>
-          </div>
-          <DialogClose asChild>
-            <button aria-label="Cerrar" className="flex h-10 w-10 items-center justify-center rounded-lg text-[#5f6872] hover:bg-[#eff1f0]" type="button">×</button>
-          </DialogClose>
-        </DialogHeader>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5" data-modal-scroll>
-          <label className="block">
-            <span className="project-eyebrow">NOMBRE</span>
-            <input autoFocus className="project-input mt-1 disabled:cursor-not-allowed disabled:bg-[#eff1f0]" disabled={!canRename} maxLength={100} onChange={(event) => onNameChange(event.target.value)} value={name} />
-            {!canRename && <span className="mt-1 block text-[11px] text-[#858d91]">El proyecto personal no se puede renombrar.</span>}
-          </label>
-          <label className="block">
-            <span className="project-eyebrow">DESCRIPCIÓN</span>
-            <textarea className="project-input mt-1 min-h-24 resize-y py-2" maxLength={2000} onChange={(event) => onDescriptionChange(event.target.value)} placeholder="Qué contexto debe conocer el equipo..." value={description} />
-          </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="project-eyebrow">FECHA OBJETIVO</span>
-              <input className="project-input mt-1" onChange={(event) => onTargetDateChange(event.target.value)} type="date" value={targetDate} />
-            </label>
-            <div>
-              <span className="project-eyebrow">COLOR</span>
-              <div className="mt-1"><ColorPicker onChange={onColorChange} value={color} /></div>
-            </div>
-          </div>
-          <div>
-            <span className="project-eyebrow">META SEMANAL (OPCIONAL)</span>
-            <div className="mt-1 flex items-center gap-2">
-              <input aria-label="Horas de meta semanal" className="project-input w-20 text-center" maxLength={3} onChange={(event) => onTargetHoursChange(event.target.value.replace(/\D/g, ""))} placeholder="0" value={targetHours} />
-              <span className="text-[13px] text-[#5f6872]">h</span>
-              <input aria-label="Minutos de meta semanal" className="project-input w-20 text-center" maxLength={2} onChange={(event) => onTargetMinutesChange(event.target.value.replace(/\D/g, ""))} placeholder="0" value={targetMinutes} />
-              <span className="text-[13px] text-[#5f6872]">min</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex shrink-0 justify-end gap-2 border-t border-[#e7e9e8] p-5 pt-4">
-          <DialogClose asChild>
-            <button className="min-h-10 rounded-lg border border-[#dde1e2] px-3 text-[13px] font-semibold text-[#5f6872]" type="button">Cancelar</button>
-          </DialogClose>
-          <button className="min-h-10 rounded-lg bg-[#1e3a5f] px-4 text-[13px] font-semibold text-white hover:bg-[#152c48]" disabled={!name.trim()} onClick={onSave} type="button">Guardar cambios</button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+  return <section className="project-panel project-card min-h-[564px]"><h2>Actividad reciente</h2><ProjectActivityTimeline activities={query.data?.data ?? []} /></section>;
 }
 
 export default function ProjectDetailPage() {
