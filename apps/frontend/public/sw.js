@@ -1,8 +1,8 @@
-const CACHE_NAME = "nisky-shell-v2";
+const CACHE_NAME = "nisky-shell-v3";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll([OFFLINE_URL, "/manifest.webmanifest", "/icons/icon-192x192.png", "/icons/icon-512x512.png", "/icons/apple-touch-icon.png"])));
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll([OFFLINE_URL, "/manifest.webmanifest", "/nisky-otter-approved.png"])));
   self.skipWaiting();
 });
 
@@ -32,7 +32,7 @@ self.addEventListener("push", (event) => {
   }
   event.waitUntil(self.registration.showNotification(payload.title ?? "Nisky", {
     body: payload.body ?? "Tienes un nuevo aviso.",
-    icon: payload.icon ?? "/icons/icon-192x192.png",
+    icon: payload.icon ?? "/nisky-otter-approved.png",
     badge: payload.badge ?? "/icons/badge-72x72.png",
     tag: payload.tag,
     data: payload.data ?? { url: "/" },

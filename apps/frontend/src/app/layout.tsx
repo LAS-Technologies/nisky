@@ -22,11 +22,8 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   icons: {
-    icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: "/nisky-favicon-v2.png", sizes: "512x512", type: "image/png" }],
+    apple: [{ url: "/nisky-otter-approved.png", sizes: "512x512", type: "image/png" }],
   },
   other: {
     "mobile-web-app-capable": "yes",
