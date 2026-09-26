@@ -11,10 +11,10 @@ export const PROJECT_COLORS = [
   "#4a4a2a",
 ];
 
-export function ColorPicker({ value, onChange, name, disabled = false }: { value: string; onChange: (color: string) => void; name?: string; disabled?: boolean }) {
+export function ColorPicker({ value, onChange, name, disabled = false, colors = PROJECT_COLORS }: { value: string; onChange: (color: string) => void; name?: string; disabled?: boolean; colors?: string[] }) {
   return (
     <div aria-label="Colores disponibles" className="flex flex-wrap gap-2" role="radiogroup">
-      {PROJECT_COLORS.map((color) => {
+      {colors.map((color) => {
         const selected = color === value;
         return (
           <button

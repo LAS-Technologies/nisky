@@ -1,98 +1,51 @@
 "use client";
 
-import { Check, Flame, Settings, Sparkles } from "lucide-react";
+import { Check, MoreHorizontal, Target } from "lucide-react";
 import { localDateKey } from "@/lib/utils";
 import type { HabitsMatrix } from "@/types/entities";
+import { HomeCardHeader } from "./HomeCardHeader";
 
-export function HomeHabitsSummary({
-  matrix,
-  isLoading,
-  onToggle,
-  onOpenManager,
-}: {
+export function HomeHabitsSummary({ matrix, isLoading, isError, onRetry, onToggle, onOpenManager }: {
   matrix: HabitsMatrix | undefined;
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onToggle: (habitId: string, date: string) => void;
   onOpenManager: () => void;
 }) {
-  const now = new Date();
-  const todayKey = localDateKey(now);
+  const todayKey = localDateKey(new Date());
   const habits = (matrix?.habits ?? []).filter((habit) => habit.isDueToday);
   const completedToday = habits.filter((habit) => habit.todayCompleted).length;
-
   return (
-    <section className="space-y-3">
-      <header className="flex items-start justify-between gap-3 px-1">
-        <div>
-          <h2 className="font-headline-xs text-headline-xs font-bold text-on-surface">Hábitos de hoy</h2>
-          <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">
-            {habits.length > 0 ? `${completedToday} de ${habits.length} completados` : "Tu ritmo diario"}
-          </p>
-        </div>
-        <button
-          aria-label="Gestionar hábitos"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-on-surface-variant hover:border-outline-variant hover:bg-surface-container-low hover:text-on-surface"
-          onClick={onOpenManager}
-          title="Gestionar hábitos"
-          type="button"
-        >
-          <Settings size={15} />
-        </button>
-      </header>
-
+    <section className="home-card home-habits" aria-label="Hábitos de hoy">
+      <HomeCardHeader icon={Target} title="Hábitos de hoy" subtitle="Tu ritmo diario" action={
+        <button aria-label="Gestionar hábitos" className="home-icon-action" onClick={onOpenManager} type="button"><MoreHorizontal size={18} /></button>
+      } />
+      <span className="sr-only" aria-live="polite">{completedToday} de {habits.length} completados</span>
       {isLoading ? (
-        <p className="font-body-sm text-body-sm text-on-surface-variant">Cargando hábitos...</p>
-      ) : matrix?.habits.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-4 py-5 text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-low text-on-surface-variant">
-            <Sparkles aria-hidden="true" size={18} />
-          </span>
-          <div>
-            <p className="font-body-sm text-body-sm font-semibold text-on-surface">Empieza tu ritmo</p>
-            <p className="mt-1 max-w-xs font-body-sm text-body-sm text-on-surface-variant">
-              Crea un hábito pequeño y márcalo cada día para ver tu progreso.
-            </p>
-          </div>
-          <button className="min-h-9 rounded-md border border-outline-variant bg-transparent px-3 py-1.5 font-label-md text-label-md font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface" onClick={onOpenManager} type="button">
-            Crear primer hábito
-          </button>
+        <div aria-label="Cargando hábitos" className="mt-4 h-40 animate-pulse rounded-md bg-surface-container-low" role="status" />
+      ) : isError ? (
+        <div className="py-5 font-body-sm text-body-sm text-error" role="alert">
+          <p>No pudimos cargar tus hábitos.</p>
+          {onRetry && <button className="mt-2 min-h-11 underline" onClick={onRetry} type="button">Reintentar</button>}
+        </div>
+      ) : !matrix?.habits.length ? (
+        <div className="flex min-h-[196px] flex-col items-start justify-center gap-3">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">Crea un hábito pequeño y cuídalo cada día.</p>
+          <button className="min-h-11 rounded-sm border border-outline-variant px-3 text-[13px] text-primary hover:bg-surface-container-low" onClick={onOpenManager} type="button">Crear primer hábito</button>
         </div>
       ) : habits.length === 0 ? (
-        <p className="font-body-sm text-body-sm text-on-surface-variant">
-          No hay hábitos programados para hoy.
-        </p>
+        <p className="py-6 font-body-sm text-body-sm text-on-surface-variant">No hay hábitos programados para hoy.</p>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div>
           {habits.map((habit) => (
-            <button
-              aria-pressed={habit.todayCompleted}
-              className="flex min-h-12 items-center gap-3 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 py-2.5 text-left shadow-sm transition-colors hover:border-secondary hover:bg-surface-container-low"
-              key={habit.id}
-              onClick={() => onToggle(habit.id, todayKey)}
-              type="button"
-            >
-              <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${habit.todayCompleted ? "border-tertiary bg-tertiary text-on-primary" : "border-outline-variant text-transparent"}`}
-              >
-                <Check size={13} strokeWidth={3} />
-              </span>
-              <span className="min-w-0">
-                <span className={`flex items-center gap-1.5 font-body-sm text-body-sm font-medium ${habit.todayCompleted ? "text-on-surface-variant line-through" : "text-on-surface"}`}>
-                  {habit.color && (
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: habit.color }}
-                    />
-                  )}
-                  <span className="truncate">{habit.name}</span>
-                </span>
-                <span className="mt-0.5 flex items-center gap-1 font-data-mono text-data-mono text-[11px] text-on-surface-variant">
-                  <Flame size={11} className={habit.streak > 0 ? "text-tertiary" : ""} />
-                  {habit.streak} días
-                </span>
-              </span>
-            </button>
+            <div className="home-habit-row" key={habit.id}>
+              <button aria-label={`${habit.todayCompleted ? "Marcar pendiente" : "Completar"} ${habit.name}`} aria-pressed={habit.todayCompleted} className="home-check-button" onClick={() => onToggle(habit.id, todayKey)} type="button">
+                <span className="home-checkbox" data-checked={habit.todayCompleted}><Check size={14} aria-hidden="true" /></span>
+              </button>
+              <span className="min-w-0 flex-1 break-words text-[15px] leading-[22px]" title={`Racha: ${habit.streak} días`}>{habit.name}</span>
+              <button aria-label={`Gestionar ${habit.name}`} className="home-icon-action" onClick={onOpenManager} type="button"><MoreHorizontal size={16} /></button>
+            </div>
           ))}
         </div>
       )}

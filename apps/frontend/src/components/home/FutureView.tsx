@@ -1,102 +1,52 @@
 "use client";
 
 import Link from "next/link";
+import { CalendarDays, ChevronRight, MoreHorizontal } from "lucide-react";
 import { localDateKey } from "@/lib/utils";
 import { minToTime } from "@/features/timeblocks/lib/time";
 import type { Project, Task, TimeBlockWithProject } from "@/types/entities";
+import { HomeCardHeader } from "./HomeCardHeader";
 
 type FutureBlock = TimeBlockWithProject & { date?: string };
 
-function dayLabel(offsetDays: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "short" }).format(date);
-}
-
-function futureDayKey(offsetDays: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return localDateKey(date);
-}
-
-export function FutureView({
-  tasks,
-  blocks,
-}: {
+export function FutureView({ tasks, blocks }: {
   tasks: (Task & { project: Project | null })[];
   blocks: FutureBlock[];
 }) {
-  const tomorrowKey = futureDayKey(1);
-  const dayAfterKey = futureDayKey(2);
-
-  const days = [
-    { key: tomorrowKey, label: "Mañana", title: dayLabel(1) },
-    { key: dayAfterKey, label: "Pasado mañana", title: dayLabel(2) },
-  ];
-
+  const days = [1, 2].map((offset) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return { key: localDateKey(date), date, title: offset === 1 ? "Mañana" : "Pasado mañana" };
+  });
   return (
-    <section className="space-y-5 rounded-lg border border-outline-variant bg-surface-container-lowest p-container-padding shadow-sm">
-      <header className="flex items-center justify-between gap-2 border-b border-outline-variant pb-3">
-        <div>
-          <h2 className="font-headline-xs text-headline-xs font-bold text-on-surface">Próximos días</h2>
-          <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">Tu siguiente ritmo</p>
-        </div>
-        <Link className="font-label-caps text-label-caps text-primary hover:underline" href="/timeblocks">
-          AGENDA <span aria-hidden="true">→</span>
-        </Link>
-      </header>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
-        {days.map((day) => {
-          const dayTasks = tasks.filter((task) => task.dueDate && localDateKey(task.dueDate) === day.key).slice(0, 3);
-          const dayBlocks = blocks
-            .filter((block) => (block.date ? block.date === day.key : block.daysOfWeek.includes(new Date(`${day.key}T12:00:00.000Z`).getDay())))
-            .sort((a, b) => a.startMin - b.startMin);
-          return (
-            <div className="space-y-2" key={day.key}>
-              <div className="flex items-baseline justify-between gap-3 px-1">
-                <h3 className="font-headline-xs text-headline-xs font-semibold text-on-surface">{day.label}</h3>
-                <p className="capitalize font-data-mono text-data-mono text-xs text-on-surface-variant">{day.title}</p>
-              </div>
-              <div className="rounded-lg border border-outline-variant/70 bg-surface-container-low p-3">
-                <div className="space-y-3">
-                  {dayBlocks.length === 0 ? (
-                    <p className="font-body-sm text-body-sm text-on-surface-variant">Sin bloques</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {dayBlocks.map((block) => (
-                        <li className="flex items-center gap-2 font-body-sm text-body-sm" key={block.id}>
-                          <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: block.project?.color ?? "#0f172a" }} />
-                          <span className="truncate">{block.name ?? block.project?.name ?? "Tiempo libre"}</span>
-                          <span className="ml-auto shrink-0 font-data-mono text-data-mono text-xs text-on-surface-variant">
-                            {minToTime(block.startMin)}–{minToTime(block.endMin)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {dayBlocks.length > 0 && dayTasks.length > 0 && <div className="border-t border-outline-variant/70" />}
-
-                  {dayTasks.length === 0 ? (
-                    <p className="font-body-sm text-body-sm text-on-surface-variant">Sin tareas</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {dayTasks.map((task) => (
-                        <li className="flex items-center gap-2 font-body-sm text-body-sm" key={task.id}>
-                          {task.project && <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: task.project.color }} />}
-                          <Link className="line-clamp-1 min-w-0 flex-1 hover:text-primary" href={`/tasks?taskId=${encodeURIComponent(task.id)}`}>
-                            {task.title}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
+    <section className="home-card home-future" aria-label="Próximos días">
+      <HomeCardHeader icon={CalendarDays} title="Próximos días" subtitle="Tu siguiente ritmo" action={
+        <Link aria-label="Ver agenda" className="home-icon-action" href="/timeblocks"><MoreHorizontal size={18} /></Link>
+      } />
+      {days.map((day) => {
+        const dayTasks = tasks.filter((task) => task.dueDate && localDateKey(task.dueDate) === day.key).slice(0, 3);
+        const dayBlocks = blocks.filter((block) => block.date ? localDateKey(block.date) === day.key : block.daysOfWeek.includes(day.date.getDay())).sort((a, b) => a.startMin - b.startMin);
+        return (
+          <div className="home-future-day" key={day.key}>
+            <time dateTime={day.key} className="home-future-date" title={day.title}>
+              <span>{new Intl.DateTimeFormat("es-DO", { weekday: "short" }).format(day.date).replace(".", "").toUpperCase()}</span>
+              <strong>{day.date.getDate()}</strong>
+            </time>
+            <div className="min-w-0 flex-1 space-y-2 font-body-sm text-body-sm text-on-surface-variant">
+              {dayBlocks.length === 0 ? <p>• &nbsp;Sin bloques</p> : dayBlocks.map((block) => (
+                <Link className="block hover:text-primary" href="/timeblocks" key={block.id}>
+                  <span className="block truncate">{block.name ?? block.project?.name ?? "Bloque de enfoque"}</span>
+                  <span className="text-xs">{minToTime(block.startMin)}–{minToTime(block.endMin)}</span>
+                </Link>
+              ))}
+              {dayTasks.length === 0 ? <p>• &nbsp;Sin tareas</p> : dayTasks.map((task) => (
+                <Link className="block truncate hover:text-primary" href={`/tasks?taskId=${encodeURIComponent(task.id)}`} key={task.id}>• &nbsp;{task.title}</Link>
+              ))}
             </div>
-          );
-        })}
-      </div>
+            <Link aria-label={`Ver agenda: ${day.title}`} className="home-icon-action" href="/timeblocks"><ChevronRight size={18} /></Link>
+          </div>
+        );
+      })}
     </section>
   );
 }

@@ -5,14 +5,14 @@ import { usePathname } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
-  LogOut,
   MessageSquarePlus,
   X,
 } from "lucide-react";
 import { useState } from "react";
 import { FeedbackModal } from "@/components/feedback/FeedbackModal";
 import { Avatar } from "@/components/ui/Avatar";
-import { useAuth } from "@/context/AuthProvider";
+import { BrandMark } from "@/components/ui/BrandMark";
+import Image from "next/image";
 import type { User } from "@/types/entities";
 import { desktopPrimaryItems, desktopSecondaryItems, isNavigationItemActive, type NavigationItem } from "@/components/ui/navigation";
 
@@ -22,19 +22,22 @@ function NavItem({
   icon: Icon,
   onNavigate,
   collapsed,
+  primary = false,
   }: {
   href: NavigationItem["href"];
   label: NavigationItem["label"];
   icon: NavigationItem["icon"];
   onNavigate?: () => void;
   collapsed?: boolean;
+  primary?: boolean;
 }) {
   const pathname = usePathname();
   const active = isNavigationItemActive(pathname, href);
 
   return (
     <Link
-      className={`flex min-h-11 items-center gap-element-gap-md rounded-md px-3.5 py-2.5 font-body-md text-body-md transition-colors ${active ? "bg-secondary-fixed font-semibold text-secondary shadow-sm" : "font-medium text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"} ${collapsed ? "lg:mx-0 lg:w-12 lg:justify-center lg:gap-0 lg:px-0" : ""}`}
+      aria-current={active ? "page" : undefined}
+      className={`flex shrink-0 items-center gap-element-gap-md rounded-md px-3.5 py-2.5 font-body-md text-body-md transition-colors ${primary ? "min-h-14" : "min-h-11"} ${active ? "bg-primary-fixed font-semibold text-primary" : "font-medium text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"} ${collapsed ? "lg:mx-0 lg:w-12 lg:justify-center lg:gap-0 lg:px-0" : ""}`}
       href={href}
       onClick={onNavigate}
       title={collapsed ? label : undefined}
@@ -58,7 +61,6 @@ export function Sidebar({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const { logout } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
@@ -72,18 +74,19 @@ export function Sidebar({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 hidden w-72 shrink-0 flex-col border-r border-outline-variant bg-surface-container-lowest transition-all duration-200 sm:flex lg:relative lg:z-auto lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-72"} ${open ? "translate-x-0" : "-translate-x-full"}`}
+        aria-label="Navegación principal"
+        className={`fixed inset-y-0 left-0 z-50 hidden w-[294px] shrink-0 flex-col border-r border-outline-variant bg-surface transition-all duration-200 sm:flex lg:relative lg:z-auto lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-[294px]"} ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <div className={`flex items-center justify-between px-6 pb-5 pt-7 ${collapsed ? "lg:justify-center lg:px-0 lg:pb-4 lg:pt-6" : ""}`}>
+        <div className={`flex h-[130px] shrink-0 items-center justify-between px-8 py-4 ${collapsed ? "lg:justify-center lg:px-0" : ""}`}>
           <Link
-            className="font-headline-lg text-headline-lg font-bold tracking-tight text-primary hover:underline"
+            className="flex items-center gap-4 font-display-hero text-display-hero font-bold tracking-tight text-primary"
             href="/"
-            title="Nisky"
+            aria-label="Nisky, ir a Inicio"
           >
+            <BrandMark size={collapsed ? 40 : 76} />
             {collapsed ? (
               <>
                 <span className="lg:hidden">Nisky</span>
-                <span className="hidden lg:inline">N</span>
               </>
             ) : (
               "Nisky"
@@ -99,7 +102,7 @@ export function Sidebar({
           </button>
         </div>
         <div
-          className={`mx-4 mb-4 flex items-center gap-element-gap-md rounded-lg border border-outline-variant/50 bg-surface-container-low p-2.5 ${collapsed ? "lg:mx-2 lg:justify-center lg:border-transparent lg:bg-transparent lg:p-0" : ""}`}
+          className={`mx-[22px] mb-4 flex min-h-[70px] shrink-0 items-center gap-element-gap-md rounded-[12px] border border-info/25 bg-surface p-2.5 ${collapsed ? "lg:mx-2 lg:justify-center lg:border-transparent lg:bg-transparent lg:p-0" : ""}`}
         >
           <Avatar avatarUrl={user?.avatarUrl} className="h-9 w-9" email={user?.email} name={user?.name} size="md" />
           <div className={`min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
@@ -111,12 +114,12 @@ export function Sidebar({
             </p>
           </div>
         </div>
-        <nav className={`flex flex-1 flex-col gap-1 overflow-y-auto py-1 ${collapsed ? "lg:px-2" : "px-3"}`}>
+        <nav className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-1 ${collapsed ? "px-2" : "px-[22px]"}`}>
           {desktopPrimaryItems.map((item) => (
-            <NavItem {...item} collapsed={collapsed} key={item.href} onNavigate={onClose} />
+            <NavItem {...item} primary collapsed={collapsed} key={item.href} onNavigate={onClose} />
           ))}
         </nav>
-        <div className={`border-t border-outline-variant/70 px-4 py-4 ${collapsed ? "lg:px-2" : ""}`}>
+        <div className={`shrink-0 border-t border-outline-variant/70 px-4 py-2 ${collapsed ? "lg:px-2" : ""}`}>
           <p className={`mb-2 px-3 font-label-caps text-label-caps text-on-surface-variant ${collapsed ? "lg:hidden" : ""}`}>CUENTA Y AYUDA</p>
           <div className="space-y-1">
             {desktopSecondaryItems.map((item) => (
@@ -135,21 +138,14 @@ export function Sidebar({
               <span className={collapsed ? "lg:hidden" : undefined}>Feedback</span>
             </button>
           </div>
-          <div className="mt-3 border-t border-outline-variant/60 pt-3">
-            <button
-              className={`flex min-h-11 w-full items-center gap-element-gap-md rounded-md px-3.5 py-2.5 text-left font-body-md text-body-md font-medium text-on-surface-variant transition-colors hover:bg-error-container hover:text-error ${collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""}`}
-              onClick={() => void logout()}
-              title={collapsed ? "Cerrar sesión" : undefined}
-              type="button"
-            >
-              <LogOut size={20} strokeWidth={1.8} />
-              <span className={collapsed ? "lg:hidden" : undefined}>Cerrar sesión</span>
-            </button>
+          <div className={`mt-6 flex h-[62px] items-center justify-center border-t border-outline-variant/60 pt-3 ${collapsed ? "lg:hidden" : ""}`}>
+            <Image alt="LAS" height={30} src="/las-logo-approved.png" width={96} />
           </div>
         </div>
         <button
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="absolute -right-3 top-5 z-50 hidden h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest text-on-surface-variant shadow-sm transition-colors hover:border-primary hover:bg-surface-container-low hover:text-primary lg:flex"
+          aria-expanded={!collapsed}
+          className="absolute -right-3 top-5 z-50 hidden h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-outline-variant bg-surface text-on-surface-variant shadow-sm transition-colors hover:border-primary hover:text-primary lg:flex"
           onClick={onToggleCollapse}
           title={collapsed ? "Expandir menú (Alt+B)" : "Colapsar menú (Alt+B)"}
           type="button"

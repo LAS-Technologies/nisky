@@ -22,7 +22,12 @@ function levelClass(level: number) {
   return "bg-surface-container-high";
 }
 
-export function ActivityHeatmap({ activity }: { activity: HomeActivityPoint[] | undefined }) {
+export function ActivityHeatmap({ activity, isLoading = false, isError = false, onRetry }: {
+  activity: HomeActivityPoint[] | undefined;
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
+}) {
   const grid = useMemo(() => {
     const byDate = new Map<string, HomeActivityPoint>();
     for (const point of activity ?? []) byDate.set(point.date, point);
@@ -51,7 +56,14 @@ export function ActivityHeatmap({ activity }: { activity: HomeActivityPoint[] | 
     return columns;
   }, [activity]);
 
-  const hasActivity = Boolean(activity && activity.length > 0);
+  const hasActivity = Boolean(activity?.some((point) => point.tasks + point.habits + point.pomodoro > 0));
+  const thisWeekDates = new Set(grid.at(-1)?.map((day) => day.date) ?? []);
+  const thisWeek = (activity ?? []).filter((point) => thisWeekDates.has(point.date));
+  const weekTotals = thisWeek.reduce((total, point) => ({
+    tasks: total.tasks + point.tasks,
+    habits: total.habits + point.habits,
+    pomodoro: total.pomodoro + point.pomodoro,
+  }), { tasks: 0, habits: 0, pomodoro: 0 });
 
   return (
     <section className="rounded-lg border border-outline-variant bg-surface-container-lowest p-container-padding shadow-sm">
@@ -66,8 +78,16 @@ export function ActivityHeatmap({ activity }: { activity: HomeActivityPoint[] | 
         </div>
       </header>
 
-      {hasActivity ? (
-        <div className="overflow-x-auto no-scrollbar">
+      {isLoading ? (
+        <div aria-label="Cargando actividad" className="h-24 animate-pulse rounded-md bg-surface-container-low" role="status" />
+      ) : isError ? (
+        <div className="font-body-sm text-body-sm text-on-error-container" role="alert">
+          <p>No pudimos cargar tu actividad.</p>
+          {onRetry && <button className="mt-2 min-h-11 rounded-md px-3 underline underline-offset-2" onClick={onRetry} type="button">Reintentar</button>}
+        </div>
+      ) : hasActivity ? (
+        <>
+        <div aria-hidden="true" className="overflow-x-auto no-scrollbar">
           <div className="mx-auto flex w-full min-w-[20rem] flex-col gap-1 sm:min-w-0">
             <div className="flex gap-1">
               <div className="flex w-4 shrink-0 flex-col gap-1 sm:w-5">
@@ -92,6 +112,16 @@ export function ActivityHeatmap({ activity }: { activity: HomeActivityPoint[] | 
             </div>
           </div>
         </div>
+        <p className="mt-3 font-body-sm text-body-sm text-on-surface-variant">
+          Esta semana: {weekTotals.tasks} tareas, {weekTotals.habits} hábitos y {weekTotals.pomodoro} pomodoros.
+        </p>
+        <details className="mt-2 font-body-sm text-body-sm text-on-surface-variant">
+          <summary className="cursor-pointer py-2 text-primary">Ver actividad por día</summary>
+          <ul className="max-h-48 space-y-1 overflow-y-auto py-2">
+            {grid.flat().filter((day) => day.level > 0).map((day) => <li key={day.date}>{day.label}</li>)}
+          </ul>
+        </details>
+        </>
       ) : (
         <p className="font-body-sm text-body-sm text-on-surface-variant">
           Completa tareas, marca hábitos o termina pomodoros para ver tu mapa de actividad.

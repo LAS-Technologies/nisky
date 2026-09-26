@@ -128,7 +128,7 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
 
   const handleCreate = async () => {
     const body = newBody.trim();
-    if (!body) return;
+    if (!body || create.isPending) return;
     shouldScrollToBottom.current = true;
     try {
       await create.mutateAsync({ kind, id, body });
@@ -176,7 +176,7 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-6 pr-1" data-modal-scroll ref={listRef}>
         {query.isLoading ? (
           <CommentSkeleton />
-        ) : comments.length === 0 ? (
+        ) : query.isError ? <div role="alert" className="space-y-3 p-4"><p>No pudimos cargar los comentarios.</p><button className="min-h-11 rounded-md border border-outline-variant px-4" onClick={() => void query.refetch()}>Reintentar</button></div> : comments.length === 0 ? (
           <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-outline-variant p-6 text-center">
             <MessageSquare className="text-primary" size={22} />
             <p className="font-label-caps text-label-caps text-on-surface-variant">SIN COMENTARIOS</p>
@@ -317,7 +317,7 @@ export function CommentThread({ kind, id, projectId }: { kind: "project" | "task
                 onClick={() => void handleCreate()}
                 type="button"
               >
-                <Send size={14} /> Comentar
+                <Send size={14} /> {kind === "project" ? "Enviar comentario" : "Comentar"}
               </button>
             </div>
           </div>

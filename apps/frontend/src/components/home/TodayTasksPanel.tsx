@@ -4,12 +4,13 @@ import {
   AlertCircle,
   ArrowRight,
   CalendarDays,
-  CheckCircle2,
-  Circle,
-  Inbox,
-  MessageSquare,
+  Check,
+  Folder,
+  MoreHorizontal,
+  SquareCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { HomeCardHeader } from "./HomeCardHeader";
 import { localDateKey } from "@/lib/utils";
 import type { HomeBlockTask, Task } from "@/types/entities";
 
@@ -51,7 +52,7 @@ function dueBadge(task: Task) {
   if (!task.dueDate) return null;
   return (
     <span
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 font-data-mono text-[11px] font-medium ${overdue ? "bg-error-container text-error" : today ? "bg-secondary-fixed text-secondary" : "bg-surface-container-low text-on-surface-variant"}`}
+      className={`inline-flex items-center gap-1 text-[13px] ${overdue ? "text-error" : "text-primary"}`}
     >
       {overdue ? <AlertCircle size={12} /> : <CalendarDays size={12} />}
       {overdue ? "Atrasada" : today ? "Hoy" : localDateKey(task.dueDate)}
@@ -68,96 +69,51 @@ function priorityBadge(task: Task) {
   );
 }
 
-function TodayTaskRow({
-  task,
-  onToggle,
-}: {
-  task: Task | HomeBlockTask;
-  onToggle: (task: Task) => void;
-}) {
+function TodayTaskRow({ task, onToggle }: { task: Task | HomeBlockTask; onToggle: (task: Task) => void }) {
+  const completed = task.status === "COMPLETED";
   return (
-    <div className="group flex items-start gap-3 rounded-lg border border-outline-variant/60 bg-surface-container-lowest p-3 shadow-sm transition-colors hover:border-outline hover:bg-surface-container-low">
-      <button
-        aria-label={`Completar ${task.title}`}
-        aria-pressed={task.status === "COMPLETED"}
-        className="-ml-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-outline hover:text-secondary"
-        onClick={() => onToggle(task)}
-        type="button"
-      >
-        {task.status === "COMPLETED" ? (
-          <CheckCircle2 className="text-tertiary" size={18} />
-        ) : (
-          <Circle size={18} />
-        )}
+    <div className="home-task-row">
+      <button aria-label={`${completed ? "Marcar pendiente" : "Completar"} ${task.title}`} aria-pressed={completed} className="home-check-button" onClick={() => onToggle(task)} type="button">
+        <span className="home-checkbox" data-checked={completed}><Check size={14} aria-hidden="true" /></span>
       </button>
-      <Link
-        className="min-w-0 flex-1"
-        href={`/tasks?taskId=${encodeURIComponent(task.id)}`}
-      >
-        <p className={`line-clamp-2 break-words font-body-md text-body-md font-medium hover:text-primary ${task.status === "COMPLETED" ? "text-on-surface-variant line-through" : "text-on-surface"}`}>
-          {task.title}
-        </p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          {dueBadge(task)}
-          {task.project && (
-            <span className="inline-flex max-w-[8rem] items-center gap-1 font-data-mono text-data-mono text-[11px] text-on-surface-variant" title={task.project.name}>
-              <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: task.project.color }} />
-              <span className="truncate">{task.project.name}</span>
-            </span>
-          )}
-          {priorityBadge(task)}
-          {(task.commentCount ?? 0) > 0 && (
-            <span className="flex items-center gap-1 font-data-mono text-data-mono text-[11px] text-on-surface-variant" title="Comentarios">
-              <MessageSquare size={11} /> {task.commentCount}
-            </span>
-          )}
-          {"scheduleState" in task && task.scheduleState === "REPLAN" && (
-            <span className="inline-flex items-center rounded-md bg-error-container px-2 py-0.5 font-label-caps text-[10px] uppercase text-error">Replanificar</span>
-          )}
-        </div>
+      <Link className={`home-task-name hover:text-primary ${completed ? "text-on-surface-variant line-through" : ""}`} href={`/tasks?taskId=${encodeURIComponent(task.id)}`}>
+        {task.title}
+        {"scheduleState" in task && task.scheduleState === "REPLAN" && <span className="ml-2 text-xs text-error">Replanificar</span>}
+        {(task.commentCount ?? 0) > 0 && <span className="sr-only"> · {task.commentCount} comentarios</span>}
       </Link>
+      {task.project && (
+        <Link className="home-task-project" href={`/projects/${encodeURIComponent(task.project.id)}`} title={task.project.name}>
+          <Folder size={14} className="shrink-0" aria-hidden="true" /><span className="truncate">{task.project.name}</span>
+        </Link>
+      )}
+      <span className="home-task-due">{dueBadge(task) ?? priorityBadge(task)}</span>
+      <Link aria-label={`Ver detalles de ${task.title}`} className="home-icon-action" href={`/tasks?taskId=${encodeURIComponent(task.id)}`}><MoreHorizontal size={18} /></Link>
     </div>
   );
 }
 
-export function TodayTasksPanel({
-  tasks,
-  blockTasks = [],
-  onToggle,
-  emptyMessage = "Nada pendiente. ¡Todo al día!",
-}: {
+export function TodayTasksPanel({ tasks, blockTasks = [], onToggle, emptyMessage = "Nada pendiente. ¡Todo al día!", onCreateTask }: {
   tasks: Task[];
   blockTasks?: HomeBlockTask[];
   onToggle: (task: Task) => void;
   emptyMessage?: string;
+  onCreateTask?: () => void;
 }) {
   const allTasks = [...blockTasks, ...tasks];
-  const totalTasks = allTasks.length;
-
   return (
-    <section className="space-y-3">
-      <header className="flex items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2">
-          <h2 className="font-headline-xs text-headline-xs font-bold text-on-surface">Por hacer</h2>
-          <span className="font-data-mono text-data-mono text-xs text-on-surface-variant">{totalTasks} tareas</span>
-        </div>
-        <Link
-          className="flex shrink-0 items-center gap-1 font-label-caps text-label-caps text-primary hover:underline"
-          href="/tasks"
-        >
-          VER TODAS <ArrowRight size={13} />
-        </Link>
-      </header>
-      {totalTasks === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-10 text-center font-body-sm text-body-sm text-on-surface-variant shadow-sm">
-          <Inbox size={20} className="text-outline" />
-          {emptyMessage}
+    <section className="home-card home-tasks" aria-label="Por hacer">
+      <HomeCardHeader icon={SquareCheck} title="Por hacer" count={`${allTasks.length} tareas`} action={
+        <Link className="flex min-h-11 shrink-0 items-center gap-1 text-[13px] text-primary hover:underline" href="/tasks">Ver todas <ArrowRight size={14} aria-hidden="true" /></Link>
+      } />
+      {allTasks.length === 0 ? (
+        <div className="flex min-h-[204px] flex-col items-start justify-center gap-3">
+          <p className="font-headline-sm text-headline-sm font-bold">Un paso a la vez</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant">{emptyMessage}</p>
+          {onCreateTask && <button className="min-h-11 rounded-sm bg-primary px-4 font-body-sm text-body-sm text-on-primary hover:bg-primary-container" onClick={onCreateTask} type="button">Añadir una tarea</button>}
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {allTasks.map((task) => (
-            <TodayTaskRow key={task.id} onToggle={onToggle} task={task} />
-          ))}
+        <div className="home-task-list">
+          {allTasks.map((task) => <TodayTaskRow key={task.id} onToggle={onToggle} task={task} />)}
         </div>
       )}
     </section>

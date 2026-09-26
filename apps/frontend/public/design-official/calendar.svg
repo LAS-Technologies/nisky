@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="220" height="114.5" viewBox="0 0 220 114.5" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group">
+<path id="Vector" fill-rule="evenodd" clip-rule="evenodd" d="M190 114C187 84 194 55 212 28C186 37 178 56 183 87C179 56 166 39 147 34C151 53 161 69 176 81C161 69 144 70 129 82C149 85 164 96 174 114H190Z" fill="#DFE8F2"/>
+<path id="Vector_2" fill-rule="evenodd" clip-rule="evenodd" d="M54 26H172L151 113H32L54 26Z" fill="#E8F0F8" stroke="#B7C9DB"/>
+<path id="Vector_3" fill-rule="evenodd" clip-rule="evenodd" d="M65 11H177L156 102H44L65 11Z" fill="white" stroke="#AFC1D5" stroke-width="2"/>
+<path id="Vector_4" fill-rule="evenodd" clip-rule="evenodd" d="M65 11H177L172 35H60L65 11Z" fill="#B9CADF"/>
+<path id="Vector_5" d="M83 2C80 2 77 6 77 11V24M131 2C128 2 125 6 125 11V24" stroke="#203C62" stroke-width="4" stroke-linecap="round"/>
+<path id="Vector_6" fill-rule="evenodd" clip-rule="evenodd" d="M68 46H90L85 64H63L68 46ZM99 46H121L116 64H94L99 46ZM130 46H152L147 64H125L130 46ZM61 73H83L78 91H56L61 73ZM92 73H114L109 91H87L92 73ZM123 73H145L140 91H118L123 73Z" fill="#DAE5F1"/>
+<path id="Vector_7" d="M0 114H220" stroke="#D2DFEB"/>
+</g>
+</svg>

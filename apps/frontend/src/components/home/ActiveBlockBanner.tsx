@@ -8,10 +8,12 @@ import {
   Circle,
   ListChecks,
   MapPin,
+  MoreHorizontal,
   Play,
   Plus,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { localDateKey } from "@/lib/utils";
 import { PriorityChip } from "@/features/tasks/components/PriorityChip";
@@ -207,46 +209,21 @@ export function ActiveBlockBanner({
       );
     }
     return (
-      <div className="relative flex flex-col gap-4 overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest p-container-padding shadow-cadence-2">
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-1 bg-primary"
-        />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-secondary-fixed text-secondary">
-              <CalendarDays size={20} />
-            </span>
-            <div className="min-w-0">
-              <span className="inline-flex items-center gap-1 rounded-md bg-surface-container px-2 py-0.5 font-label-caps text-label-caps font-semibold text-on-surface-variant">
-                Agenda libre
-              </span>
-              <p className="mt-1.5 font-headline-sm text-headline-sm font-bold text-on-surface">
-                Crea tu próximo bloque
-              </p>
-              <p className="mt-1 max-w-xl font-body-sm text-body-sm text-on-surface-variant">
-                No tienes un bloque activo ni uno próximo. Reserva un espacio
-                para proteger tu tiempo de enfoque.
-              </p>
-            </div>
-          </div>
+      <div className="home-empty-block">
+        <header className="home-block-heading">
+          <span className="home-card-icon"><CalendarDays size={22} aria-hidden="true" /></span>
+          <h2>Próximo bloque</h2>
+          <span className="home-block-status">Agenda libre</span>
+          <Link aria-label="Ver agenda" className="home-icon-action" href="/timeblocks"><MoreHorizontal size={20} /></Link>
+        </header>
+        <div className="home-block-copy">
+          <h3>Crea tu próximo bloque</h3>
+          <p>No tienes un bloque activo ni uno próximo. Reserva un espacio en tu agenda para proteger tu tiempo de enfoque.</p>
         </div>
-        <div className="flex flex-col gap-3 border-t border-outline-variant pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 font-body-sm text-body-sm font-medium text-on-surface-variant hover:border-secondary hover:bg-surface-container-low hover:text-secondary"
-              href="/timeblocks"
-            >
-              Ver agenda <ArrowRight size={14} />
-            </Link>
-            <Link
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 font-body-sm text-body-sm font-semibold text-on-primary hover:bg-primary-container hover:text-on-primary-container"
-              href="/timeblocks"
-            >
-              <Plus size={15} /> Nuevo bloque
-            </Link>
-          </div>
-        </div>
+        <Link className="home-block-create hover:bg-primary-container" href="/timeblocks">
+          <Plus size={20} aria-hidden="true" /> Nuevo bloque
+        </Link>
+        <Image className="home-block-art" alt="" aria-hidden="true" src="/design-official/calendar.svg" width={220} height={114.5} unoptimized />
       </div>
     );
   }

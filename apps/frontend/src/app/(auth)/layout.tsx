@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { CalendarCheck2, CheckCircle2, Timer } from "lucide-react";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="grid min-h-screen bg-background lg:grid-cols-[minmax(20rem,0.85fr)_minmax(32rem,1.15fr)]">
       <aside className="hidden min-h-screen flex-col justify-between bg-primary px-10 py-10 text-on-primary lg:flex xl:px-16">
         <Link className="inline-flex items-center gap-3 self-start" href="/" prefetch={false}>
-          <span className="flex size-10 items-center justify-center rounded-md bg-primary-fixed font-headline-md text-headline-md font-bold text-primary">N</span>
+          <BrandMark size={48} />
           <span className="font-headline-lg text-headline-lg font-bold tracking-tight">Nisky</span>
         </Link>
 

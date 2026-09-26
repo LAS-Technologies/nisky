@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
@@ -17,29 +18,26 @@ import { useHomeActivityQuery, useHomeOverviewQuery, useHabitsMatrixQuery } from
 import { useTaskMutations } from "@/features/tasks/hooks/useTasks";
 import type { Task } from "@/types/entities";
 import { useCapture } from "@/context/CaptureContext";
+import { useAuth } from "@/context/AuthProvider";
+import "@/components/home/home.css";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [habitManagerOpen, setHabitManagerOpen] = useState(false);
   const capture = useCapture();
-
   const overviewQuery = useHomeOverviewQuery();
   const activityQuery = useHomeActivityQuery();
   const matrixQuery = useHabitsMatrixQuery();
   const taskMutations = useTaskMutations();
   const habitMutations = useHabitMutations();
-
   const overview = overviewQuery.data;
-  const activeBlock = overview?.activeBlock ?? null;
   const blockTaskIds = new Set((overview?.todayTasks ?? []).map((task) => task.id));
-  const urgentTasks = getTodayUrgentTasks(overview?.urgentTasks ?? [], 10).filter(
-    (task) => !blockTaskIds.has(task.id),
-  );
+  const urgentTasks = getTodayUrgentTasks(overview?.urgentTasks ?? [], 10).filter((task) => !blockTaskIds.has(task.id));
   const todayLabel = new Intl.DateTimeFormat("es-DO", {
-    day: "numeric",
-    month: "long",
-    weekday: "long",
+    day: "numeric", month: "long", weekday: "long",
   }).format(new Date());
+  const firstName = user?.name?.trim().split(/\s+/)[0] || "bienvenido";
 
   const toggleTask = async (task: Task) => {
     try {
@@ -52,12 +50,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handlePlayPomodoro = (
-    taskId?: string,
-    projectId?: string,
-    timeBlockId?: string,
-    timeBlockDate?: string,
-  ) => {
+  const handlePlayPomodoro = (taskId?: string, projectId?: string, timeBlockId?: string, timeBlockDate?: string) => {
     const params = new URLSearchParams();
     if (taskId) params.set("taskId", taskId);
     if (projectId) params.set("projectId", projectId);
@@ -67,88 +60,84 @@ export default function DashboardPage() {
   };
 
   return (
-    <section className="flex h-full flex-col bg-background">
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 p-container-padding pb-24 sm:gap-8 sm:px-6 sm:py-8 lg:px-10">
-          <header className="space-y-4">
-            <div>
-              <p className="whitespace-nowrap font-label-caps text-label-caps uppercase tracking-[0.08em] text-on-surface-variant">{todayLabel}</p>
-              <h1 className="mt-1 font-display-hero-mobile font-bold text-on-surface sm:font-display-hero">Hoy</h1>
-            </div>
-            <button
-              aria-label="Abrir captura rápida"
-              className="group flex min-h-14 w-full items-center gap-3 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 text-left shadow-sm transition-colors hover:border-secondary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary sm:px-4"
-              onClick={() => capture.open("TASK")}
-              type="button"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary-fixed bg-primary-fixed text-secondary transition-colors group-hover:bg-secondary group-hover:text-on-secondary">
-                <Plus size={17} strokeWidth={2.5} />
-              </span>
-              <span className="min-w-0 flex-1 font-body-md text-body-md text-on-surface-variant">
-                Añadir tarea, idea o nota rápida...
-              </span>
-              <kbd className="hidden border border-outline-variant bg-surface-container-low px-1.5 py-0.5 font-data-mono text-[10px] text-on-surface-variant sm:inline-block">
-                Alt+N
-              </kbd>
-              <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary sm:flex">
-                <ArrowRight size={15} />
-              </span>
-            </button>
-          </header>
+    <section className="home-dashboard h-full overflow-y-auto" aria-label="Inicio">
+      <div className="home-content">
+        <header className="home-welcome">
+          <div className="home-greeting">
+            <p className="home-date">{todayLabel}</p>
+            <h1>Hola, {firstName}</h1>
+            <p className="home-purpose">Un día bien organizado te acerca a tus objetivos.<br />¿Qué quieres cuidar hoy?</p>
+          </div>
+          <div className="home-illustration" aria-hidden="true">
+            <Image alt="" src="/design-official/otter-at-desk.png" width={324} height={162} priority />
+          </div>
+        </header>
 
-          {overviewQuery.isError && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-error bg-error-container px-4 py-3 text-on-error-container" role="alert">
-              <p className="font-body-sm text-body-sm">No pudimos cargar el resumen de hoy.</p>
-              <button
-                 className="rounded-md px-2 py-1 font-label-caps text-label-caps underline underline-offset-2 hover:bg-error-container/40"
-                onClick={() => void overviewQuery.refetch()}
-                type="button"
-              >
-                REINTENTAR
-              </button>
-            </div>
-          )}
+        <button aria-label="Abrir captura rápida" className="home-capture" onClick={() => capture.open("TASK")} type="button">
+          <span className="home-capture-plus"><Plus size={24} aria-hidden="true" /></span>
+          <span className="min-w-0 flex-1">¿Qué quieres agregar hoy? <span className="hidden sm:inline">(tarea, nota, recordatorio...)</span></span>
+          <kbd className="home-shortcut">Alt+N</kbd>
+          <span className="home-capture-arrow"><ArrowRight size={20} aria-hidden="true" /></span>
+        </button>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
-            <div className="min-w-0 space-y-6 lg:col-span-7">
+        {overviewQuery.isError && (
+          <div className="home-card flex flex-wrap items-center justify-between gap-3 text-error" role="alert">
+            <p>No pudimos cargar el resumen de hoy.</p>
+            <button className="min-h-11 px-3 underline" onClick={() => void overviewQuery.refetch()} type="button">Reintentar</button>
+          </div>
+        )}
+
+        {overviewQuery.isPending ? (
+          <div aria-label="Cargando resumen de hoy" className="home-grid" role="status">
+            {[0, 1, 2, 3].map((key) => <div key={key} className="home-card min-h-[298px] animate-pulse bg-surface-container-low" />)}
+          </div>
+        ) : overview ? (
+          <div className="home-grid">
+            <div className="home-block">
               <ActiveBlockBanner
-                activeEvent={overview?.activeEvent ?? null}
-                block={activeBlock}
-                nextBlock={overview?.nextBlock ?? null}
-                nextBlockStart={overview?.nextBlockStart ?? null}
+                activeEvent={overview.activeEvent ?? null}
+                block={overview.activeBlock ?? null}
+                nextBlock={overview.nextBlock ?? null}
+                nextBlockStart={overview.nextBlockStart ?? null}
                 onPlayPomodoro={handlePlayPomodoro}
                 onToggleTask={(task) => void toggleTask(task)}
-                tasks={overview?.blockTasks ?? []}
-              />
-              <TodayTasksPanel
-                emptyMessage="Nada pendiente. ¡Todo al día!"
-                blockTasks={overview?.todayTasks ?? []}
-                onToggle={(task) => void toggleTask(task)}
-                tasks={urgentTasks}
+                tasks={overview.blockTasks ?? []}
               />
             </div>
-
-            <div className="min-w-0 space-y-6 lg:col-span-5">
-              <HomeHabitsSummary
-                isLoading={matrixQuery.isLoading}
-                matrix={matrixQuery.data}
-                onOpenManager={() => setHabitManagerOpen(true)}
-                onToggle={(habitId, date) => {
-                  void habitMutations.toggleEntry.mutateAsync({ id: habitId, date });
-                }}
-              />
-              <QuickNotesPanel />
-              <FutureView blocks={overview?.futureBlocks ?? []} tasks={overview?.futureTasks ?? []} />
-              <ActivityHeatmap activity={activityQuery.data} />
-            </div>
+            <HomeHabitsSummary
+              isLoading={matrixQuery.isLoading}
+              isError={matrixQuery.isError}
+              matrix={matrixQuery.data}
+              onOpenManager={() => setHabitManagerOpen(true)}
+              onRetry={() => void matrixQuery.refetch()}
+              onToggle={(habitId, date) => {
+                void habitMutations.toggleEntry.mutateAsync({ id: habitId, date }).catch(() => {
+                  toast.error("No pudimos actualizar el hábito.");
+                });
+              }}
+            />
+            <TodayTasksPanel
+              emptyMessage="Tu agenda está limpia. Elige una intención pequeña para empezar."
+              blockTasks={overview.todayTasks ?? []}
+              onCreateTask={() => capture.open("TASK")}
+              onToggle={(task) => void toggleTask(task)}
+              tasks={urgentTasks}
+            />
+            <FutureView blocks={overview.futureBlocks} tasks={overview.futureTasks} />
           </div>
-        </div>
-      </div>
+        ) : null}
 
+        <details className="home-extra">
+          <summary className="cursor-pointer rounded-md py-3 font-body-sm text-body-sm text-on-surface-variant">Tu actividad y capturas rápidas</summary>
+          <div className="grid gap-6 pt-3 lg:grid-cols-2">
+            <QuickNotesPanel />
+            <ActivityHeatmap activity={activityQuery.data} isError={activityQuery.isError} isLoading={activityQuery.isPending} onRetry={() => void activityQuery.refetch()} />
+          </div>
+        </details>
+      </div>
       <div className="sm:hidden">
         <FAB ariaLabel="Nueva tarea" onClick={() => capture.open("TASK")} raised={capture.isOpen} />
       </div>
-
       {habitManagerOpen && <HabitManager onClose={() => setHabitManagerOpen(false)} />}
     </section>
   );

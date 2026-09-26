@@ -1,0 +1,91 @@
+/* Official design: Figma Propuesta 04 / 110:6127. */
+.home-dashboard {
+  --home-background: #f9fbff;
+  --home-border: #dde1e2;
+  background: var(--home-background);
+}
+.home-content { max-width: 1394px; margin-inline: auto; padding: 32px 40px 40px; display: flex; flex-direction: column; gap: 26px; }
+.home-welcome { position: relative; display: flex; align-items: center; min-height: 162px; background: linear-gradient(90deg, #fff 58%, #e8f2fc); }
+.home-greeting { position: relative; z-index: 1; max-width: 62%; padding-block: 10px; }
+.home-date { color: var(--color-on-surface-variant); font-size: 13px; line-height: 18px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.home-greeting h1 { margin-block: 4px; font-family: var(--font-plus-jakarta), sans-serif; font-size: 46px; line-height: 54px; font-weight: 700; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.home-purpose { color: var(--color-on-surface-variant); font-size: 19px; line-height: 27px; }
+.home-illustration { position: absolute; right: 10px; top: 0; width: 48%; height: 162px; display: flex; align-items: center; justify-content: center; }
+.home-illustration img { width: 324px; height: 162px; max-width: 100%; object-fit: contain; }
+.home-capture { width: min(100%, 754px); min-height: 76px; display: flex; align-items: center; gap: 24px; padding: 12px 16px; border: 1px solid var(--home-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-cadence-1); text-align: left; font-size: 15px; line-height: 22px; color: var(--color-on-surface-variant); }
+.home-capture:hover { border-color: var(--color-primary); }
+.home-capture-plus, .home-capture-arrow { width: 42px; height: 42px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--color-primary-fixed); color: var(--color-primary); }
+.home-capture-arrow { background: var(--color-primary); color: var(--color-on-primary); }
+.home-shortcut { padding: 5px 9px; border-radius: 14px; font: inherit; font-size: 13px; background: var(--color-primary-fixed); color: var(--color-primary); }
+.home-grid { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(300px, 1fr); gap: 24px 20px; align-items: start; }
+.home-grid > * { min-width: 0; }
+.home-card { padding: 20px; border: 1px solid var(--home-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-cadence-1); }
+.home-block > div { min-height: 298px; border-radius: var(--radius-md); border-color: var(--home-border); box-shadow: var(--shadow-cadence-1); padding: 20px; }
+.home-card-header { display: flex; align-items: center; gap: 18px; min-height: 44px; padding-bottom: 10px; border-bottom: 1px solid var(--home-border); }
+.home-card-header h2 { font-family: var(--font-plus-jakarta), sans-serif; font-size: 20px; line-height: 27px; font-weight: 700; letter-spacing: -.02em; }
+.home-card-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 10px; background: var(--color-primary-fixed); color: var(--color-primary); }
+.home-icon-action { display: inline-flex; min-width: 32px; min-height: 44px; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--color-primary); }
+.home-icon-action:hover { background: var(--color-surface-container-low); }
+.home-empty-block { position: relative; overflow: hidden; border: 1px solid var(--home-border); background: var(--color-surface); }
+.home-block-heading { display: flex; align-items: center; gap: 12px; }
+.home-block-heading h2 { flex: 1; font-size: 11px; letter-spacing: .06em; font-weight: 500; text-transform: uppercase; }
+.home-block-status { padding: 6px 16px; border-radius: 20px; background: var(--color-primary-fixed); color: var(--color-primary); font-size: 13px; white-space: nowrap; }
+.home-block-copy { position: relative; z-index: 1; margin: 14px 0 0 76px; max-width: 500px; }
+.home-block-copy h3 { font-family: var(--font-plus-jakarta), sans-serif; font-size: 24px; line-height: 32px; font-weight: 700; letter-spacing: -.02em; }
+.home-block-copy p { margin-top: 6px; max-width: 480px; font-size: 15px; line-height: 22px; color: var(--color-on-surface-variant); }
+.home-block-create { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 10px; width: 222px; height: 52px; margin: 44px 0 19px 76px; padding-inline: 16px; border-radius: 10px; color: var(--color-on-primary); background: var(--color-primary); font-size: 15px; }
+.home-block-art { position: absolute; bottom: 2px; right: 4px; pointer-events: none; }
+.home-tasks, .home-future { min-height: 300px; }
+.home-tasks { padding-bottom: 4px; }
+.home-habits { min-height: 298px; }
+.home-task-list { display: flex; flex-direction: column; }
+.home-task-row { display: flex; align-items: center; gap: 12px; min-height: 73px; border-bottom: 1px solid var(--home-border); }
+.home-task-row:last-child { border-bottom: 0; }
+.home-task-name { flex: 1; min-width: 0; font-size: 15px; line-height: 22px; overflow-wrap: anywhere; }
+.home-task-project { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; max-width: 120px; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--color-info-container); color: var(--color-on-info-container); font-size: 13px; }
+.home-task-due { min-width: 60px; max-width: 80px; color: var(--color-primary); font-size: 13px; }
+.home-check-button { min-height: 44px; width: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.home-checkbox { width: 22px; height: 22px; border: 1px solid var(--color-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: transparent; }
+.home-checkbox[data-checked="true"] { background: var(--color-primary); color: var(--color-on-primary); }
+.home-habit-row { display: flex; align-items: center; gap: 12px; min-height: 67px; border-bottom: 1px solid var(--home-border); }
+.home-habit-row:last-child { border-bottom: 0; }
+.home-future-day { display: flex; align-items: center; gap: 16px; min-height: 100px; padding-block: 10px; border-bottom: 1px solid var(--home-border); }
+.home-future-day:last-child { border-bottom: 0; }
+.home-future-date { width: 62px; min-height: 68px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 9px; background: var(--color-primary-fixed); color: var(--color-primary); font-size: 13px; }
+.home-future-date strong { font-family: var(--font-plus-jakarta), sans-serif; font-size: 24px; line-height: 32px; color: var(--color-on-surface); }
+.home-extra { margin-top: 10px; }
+@media (max-width: 1279px) {
+  .home-content { padding-inline: 24px; }
+  .home-grid { grid-template-columns: minmax(0, 1fr); }
+  .home-block-copy { margin-left: 60px; }
+  .home-block-create { margin-left: 60px; }
+  .home-greeting { max-width: 72%; }
+  .home-greeting h1 { font-size: 36px; line-height: 44px; }
+  .home-purpose { font-size: 16px; line-height: 24px; }
+  .home-illustration { right: 0; width: 30%; }
+  .home-tasks { grid-row: 2; }
+}
+@media (max-width: 639px) {
+  .home-content { padding: 20px 16px 96px; gap: 20px; }
+  .home-welcome { min-height: 210px; align-items: start; }
+  .home-greeting { max-width: 100%; padding-block: 0; }
+  .home-greeting h1 { font-size: 32px; line-height: 42px; }
+  .home-date { font-size: 11px; }
+  .home-purpose { max-width: 250px; font-size: 14px; line-height: 22px; }
+  .home-illustration { top: auto; bottom: 0; width: 130px; height: 65px; }
+  .home-illustration img { width: 130px; height: 65px; }
+  .home-capture { min-height: 68px; gap: 12px; padding: 12px; }
+  .home-shortcut { display: none; }
+  .home-card, .home-block > div { padding: 16px; }
+  .home-card-header { gap: 12px; }
+  .home-card-header h2 { font-size: 17px; line-height: 24px; }
+  .home-block-status { padding-inline: 10px; font-size: 11px; }
+  .home-block-copy { margin-left: 0; }
+  .home-block-copy h3 { font-size: 21px; }
+  .home-block-create { margin: 28px 0 12px; width: 176px; }
+  .home-block-art { opacity: .3; }
+  .home-task-row { flex-wrap: wrap; gap: 4px 8px; padding-block: 10px; }
+  .home-task-name { flex-basis: calc(100% - 48px); }
+  .home-task-project { margin-left: 40px; }
+  .home-task-due { margin-left: auto; }
+}

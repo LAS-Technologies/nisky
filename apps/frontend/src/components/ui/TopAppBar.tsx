@@ -1,11 +1,12 @@
 "use client";
 
-import { AlarmClock, Bell, CalendarClock, ChevronRight, ListTodo, LogOut, Menu, Settings, StickyNote, X } from "lucide-react";
+import { AlarmClock, Bell, CalendarClock, ChevronDown, ChevronRight, ListTodo, LogOut, Menu, Settings, StickyNote, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthProvider";
 import { Avatar } from "@/components/ui/Avatar";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { useRemindersQuery, usePendingRemindersQuery } from "@/features/reminders/hooks/useReminders";
 import { InvitationsPanel } from "@/features/projects/components/InvitationsPanel";
 import { useTasksQuery } from "@/features/tasks/hooks/useTasks";
@@ -47,19 +48,18 @@ export function TopAppBar({ onMenu, onOpenCapture }: { onMenu: () => void; onOpe
   const notices = buildNotices(tasksQuery.data?.data ?? [], remindersQuery.data ?? [], pending, quickNotesQuery.data ?? []);
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-outline-variant bg-surface-container-lowest px-container-padding lg:px-8">
+    <header aria-label={title} className="relative flex h-16 shrink-0 items-center justify-between border-b border-outline-variant bg-surface px-container-padding lg:h-[86px] lg:px-8">
       <div className="flex items-center gap-element-gap-sm">
         <div className="flex items-center gap-element-gap-md">
           <button aria-label="Abrir menú" className="hidden rounded-md p-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary sm:flex lg:hidden" onClick={onMenu} type="button"><Menu size={20} /></button>
-          <Link aria-label="Ir a Inicio" className="font-headline-lg text-headline-lg font-bold tracking-tight text-primary hover:underline lg:hidden" href="/">Nisky</Link>
+          <Link aria-label="Ir a Inicio" className="flex items-center gap-2 font-headline-lg text-headline-lg font-bold tracking-tight text-primary hover:underline lg:hidden" href="/"><BrandMark size={36} /><span className="hidden sm:inline">Nisky</span></Link>
         </div>
       </div>
       <div className="hidden flex-1 md:block" />
-      <h2 className="absolute left-1/2 hidden -translate-x-1/2 font-headline-sm text-headline-sm font-bold text-on-surface lg:block">{title}</h2>
-      <div className="ml-auto flex items-center gap-element-gap-sm">
+      <div className="ml-auto flex items-center gap-element-gap-md">
         <button
           aria-label="Nueva nota rápida"
-           className="hidden items-center gap-1.5 rounded-md border border-outline-variant px-2.5 py-1.5 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-low hover:text-primary lg:flex"
+           className="hidden h-11 w-[150px] items-center gap-1.5 rounded-md border border-outline-variant px-2.5 py-1.5 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-low hover:text-primary lg:flex"
           onClick={onOpenCapture}
           title="Nueva nota rápida (Alt+N)"
           type="button"
@@ -70,7 +70,7 @@ export function TopAppBar({ onMenu, onOpenCapture }: { onMenu: () => void; onOpe
         </button>
           <InvitationsPanel open={openPanel === "invitations"} onOpenChange={(open) => setOpenPanel(open ? "invitations" : null)} />
            <div className="relative">
-              <button aria-expanded={openPanel === "notifications"} aria-label={`Notificaciones${notices.length > 0 ? ` (${notices.length})` : ""}`} className="relative rounded-md p-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary" onClick={() => setOpenPanel((panel) => panel === "notifications" ? null : "notifications")} type="button">
+              <button aria-expanded={openPanel === "notifications"} aria-label={`Notificaciones${notices.length > 0 ? ` (${notices.length})` : ""}`} className="relative flex h-11 w-11 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container-low hover:text-primary" onClick={() => setOpenPanel((panel) => panel === "notifications" ? null : "notifications")} type="button">
              <Bell size={19} />
             {pending.length > 0 && <span aria-hidden="true" className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-error" />}
             {notices.length > 0 && <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-data-mono text-[10px] text-on-primary">{notices.length > 9 ? "9+" : notices.length}</span>}
@@ -78,7 +78,7 @@ export function TopAppBar({ onMenu, onOpenCapture }: { onMenu: () => void; onOpe
             {openPanel === "notifications" && <NotificationPanel notices={notices} onClose={() => setOpenPanel(null)} onOpen={(url, kind) => { setOpenPanel(null); if (kind === "pending") { window.dispatchEvent(new CustomEvent(OPEN_PENDING_EVENT)); return; } router.push(url); }} />}
          </div>
          <div className="relative">
-           <button aria-expanded={openPanel === "profile"} aria-label="Perfil" className="rounded-full p-1 text-on-surface-variant hover:bg-surface-container-low hover:text-primary" onClick={() => setOpenPanel((panel) => panel === "profile" ? null : "profile")} type="button"><Avatar avatarUrl={user?.avatarUrl} email={user?.email} name={user?.name} size="sm" /></button>
+           <button aria-expanded={openPanel === "profile"} aria-label="Perfil" className="flex h-11 items-center justify-center gap-5 rounded-full px-1 text-primary hover:bg-surface-container-low" onClick={() => setOpenPanel((panel) => panel === "profile" ? null : "profile")} type="button"><Avatar avatarUrl={user?.avatarUrl} email={user?.email} name={user?.name} size="sm" /><ChevronDown aria-hidden="true" size={16} /></button>
            {openPanel === "profile" && (
              <>
                <button aria-label="Cerrar menú de perfil" className="fixed inset-0 z-40 cursor-default" onClick={() => setOpenPanel(null)} type="button" />

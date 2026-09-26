@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,7 +28,7 @@ export default function RegisterPage() {
   return (
     <section className="w-full">
       <div className="mb-8 flex items-center gap-3 lg:hidden">
-        <span className="flex size-10 items-center justify-center rounded-md bg-primary font-headline-md text-headline-md font-bold text-on-primary">N</span>
+        <BrandMark size={40} />
         <span className="font-headline-lg text-headline-lg font-bold tracking-tight text-primary">Nisky</span>
       </div>
 

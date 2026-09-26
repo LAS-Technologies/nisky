@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #f7f7f5;
+  --color-background: #f6f9fc;
   --color-foreground: #1f2933;
   --color-surface: #ffffff;
   --color-surface-bright: #ffffff;
-  --color-surface-dim: #e7e9e8;
+  --color-surface-dim: #e6edf4;
   --color-surface-tint: #737d84;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #eff1f0;
-  --color-surface-container: #e7e9e8;
-  --color-surface-container-high: #dde1e2;
-  --color-surface-container-highest: #d4d9db;
-  --color-surface-variant: #e7e9e8;
+  --color-surface-container-low: #eef3f8;
+  --color-surface-container: #e6edf4;
+  --color-surface-container-high: #dce7f0;
+  --color-surface-container-highest: #d1dfea;
+  --color-surface-variant: #e6edf4;
   --color-on-surface: #1f2933;
   --color-on-surface-variant: #5f6872;
   --color-inverse-surface: #26323b;
   --color-inverse-on-surface: #f7f7f5;
-  --color-outline: #c9d0d4;
-  --color-outline-variant: #dde1e2;
+  --color-outline: #becbd6;
+  --color-outline-variant: #dce5ed;
   --color-primary: #1e3a5f;
   --color-on-primary: #ffffff;
   --color-primary-foreground: #ffffff;
@@ -30,10 +30,10 @@
   --color-on-primary-fixed-variant: #3a485b;
   --color-secondary: #1e3a5f;
   --color-secondary-foreground: #ffffff;
-  --color-secondary-container: #e7e9e8;
+  --color-secondary-container: #e6edf4;
   --color-on-secondary-container: #1e3a5f;
-  --color-secondary-fixed: #e7e9e8;
-  --color-secondary-fixed-dim: #d4d9db;
+  --color-secondary-fixed: #e6edf4;
+  --color-secondary-fixed-dim: #d1dfea;
   --color-on-secondary: #ffffff;
   --color-on-secondary-fixed: #1e3a5f;
   --color-on-secondary-fixed-variant: #34485e;
@@ -58,23 +58,23 @@
   --color-warning-foreground: #ffffff;
   --color-warning-container: #fef3c7;
   --color-on-warning-container: #92400e;
-  --color-border: #dde1e2;
-  --color-input: #dde1e2;
+  --color-border: #dce5ed;
+  --color-input: #dce5ed;
   --color-ring: #1e3a5f;
   --color-card: #ffffff;
   --color-card-foreground: #1f2933;
   --color-popover: #ffffff;
   --color-popover-foreground: #1f2933;
-  --color-muted: #eff1f0;
+  --color-muted: #eef3f8;
   --color-muted-foreground: #5f6872;
-  --color-accent: #eff1f0;
+  --color-accent: #eef3f8;
   --color-accent-foreground: #1f2933;
   --color-destructive: #e11d48;
   --color-destructive-foreground: #ffffff;
   --color-inverse-primary: #bcc8d2;
   --color-sidebar: #ffffff;
   --color-sidebar-foreground: #1f2933;
-  --color-sidebar-border: #dde1e2;
+  --color-sidebar-border: #dce5ed;
   --radius-sm: 0.5rem;
   --radius-md: 1rem;
   --radius-lg: 1rem;
@@ -162,6 +162,10 @@
     font-family: var(--font-body-md);
   }
   button, a, input, select, textarea { transition-duration: 100ms; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
@@ -177,8 +181,8 @@
     color: var(--color-on-surface);
     outline: none;
   }
-  .field:focus { border-color: var(--color-secondary); box-shadow: none; outline: none; }
-  .field:focus-visible { border-color: var(--color-secondary); }
+  .field:focus { border-color: var(--color-secondary); box-shadow: none; }
+  .field:focus-visible { border-color: var(--color-secondary); outline: 2px solid var(--color-ring); outline-offset: 2px; }
   .field:where(select),
   .field:where(input[type="date"], input[type="time"], input[type="datetime-local"]) {
     -webkit-appearance: auto;
@@ -199,21 +203,21 @@
     }
   }
   .project-workspace {
-    --project-canvas: #f7f7f5;
+    --project-canvas: var(--color-background);
     --project-ink: #1f2933;
-    --project-primary: #1e3a5f;
-    --project-muted: #5f6872;
-    --project-border: #dde1e2;
+    --project-primary: var(--color-primary);
+    --project-muted: var(--color-on-surface-variant);
+    --project-border: var(--color-outline-variant);
   }
   .project-panel {
-    border: 1px solid #dde1e2;
+    border: 1px solid var(--color-outline-variant);
     border-radius: var(--radius-lg);
     background: #ffffff;
     box-shadow: 0 1px 3px rgba(19, 27, 46, 0.035);
   }
   .project-eyebrow {
-    color: #8a95a8;
-    font-size: 10px;
+    color: var(--color-on-surface-variant);
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1rem;
@@ -222,15 +226,16 @@
   .project-input {
     width: 100%;
     min-height: 40px;
-    border: 1px solid #dde1e2;
+    border: 1px solid var(--color-outline-variant);
     border-radius: var(--radius-sm);
     background: #ffffff;
     padding: 0 12px;
-    color: #131b2e;
+    color: var(--color-on-surface);
     font-size: 13px;
     outline: none;
   }
-  .project-input:focus { border-color: #1e3a5f; }
+  .project-input:focus { border-color: var(--color-primary); }
+  .project-input:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
 }
 
 @layer utilities {
