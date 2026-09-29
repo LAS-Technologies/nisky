@@ -187,8 +187,8 @@ export function HabitManager({ onClose }: { onClose: () => void }) {
       <DialogContent className="official-dialog flex flex-col" overlayClassName="bg-[#0f1f33]/24 supports-backdrop-filter:backdrop-blur-none" showCloseButton={false}>
         <DialogHeader className="flex shrink-0 flex-row items-center justify-between border-b border-outline-variant bg-surface-bright px-5 py-4 text-left">
           <div>
-            <DialogTitle className="font-headline-xs text-headline-xs font-bold normal-case tracking-normal text-primary">Gestionar hábitos</DialogTitle>
-            <DialogDescription className="sr-only">Crea, edita, archiva o elimina tus hábitos.</DialogDescription>
+            <DialogTitle className="font-headline-xs text-headline-xs font-bold normal-case tracking-normal text-primary">Cuida tus hábitos</DialogTitle>
+            <DialogDescription>Pequeñas acciones que construyen tu ritmo.</DialogDescription>
           </div>
           <DialogClose asChild>
              <button aria-label="Cerrar" className="flex h-10 w-10 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface" type="button"><X size={19} /></button>

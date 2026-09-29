@@ -125,11 +125,14 @@ export default function JournalPage() {
 
               <h2>Una pausa para pensar</h2>
               <p className="max-w-xl font-body-sm text-body-sm text-on-surface-variant">
-                Escribe tranquilo: tus entradas solo se abren para ti, y solo mientras estás conectado.
+                Escribe lo que pasó, lo que sientes o lo que quieres recordar. Este espacio es solo tuyo.
               </p>
               <button className="mt-2 min-h-11 rounded-md bg-primary px-4 py-2 font-body-sm text-body-sm text-on-primary shadow-cadence-1 transition-colors hover:bg-primary/90" onClick={openNew} type="button">
                 Escribir una entrada
               </button>
+              <p className="mt-1 max-w-xl border-t border-outline-variant pt-4 font-body-sm text-body-sm text-on-surface-variant">
+                Tus entradas están cifradas y solo se abren mientras estás conectado.
+              </p>
             </article>
           </>
         )}

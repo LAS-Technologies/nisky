@@ -29,6 +29,9 @@
 .official-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
 .official-tabs button { min-height: 48px; padding: 12px 16px; border-radius: 8px; font-size: 13px; color: var(--color-primary); cursor: pointer; }
 .official-tabs button[aria-selected=true] { background: var(--color-primary-fixed); }
+.official-toggle-value { min-width: 56px; min-height: 36px; padding: 6px 12px; border-radius: 8px; background: var(--color-primary-fixed); color: var(--color-primary); font: 400 13px/18px var(--font-inter),sans-serif; cursor: pointer; }
+.official-toggle-value:hover { background: var(--color-surface-container-high); }
+.official-toggle-value:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .official-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px; text-align: center; min-height: 480px; }
 .official-empty img { width: 500px; max-width: 100%; height: 230px; object-fit: contain; }
 .official-empty p { max-width: 580px; }
@@ -39,10 +42,10 @@
 .official-note-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-content: start; }
 .official-note-cards > article { min-height: 230px; border-radius: 16px; padding: 24px; box-shadow: none; }
 .official-notes-grid > aside { border-radius: 16px; padding: 24px; background: white; box-shadow: none; }
-.official-settings-grid { display: grid; grid-template-columns: 246px minmax(0,1fr); gap: 24px; align-items: start; }
-.official-settings-nav { display: flex; flex-direction: column; gap: 8px; }
-.official-settings-nav button { justify-content: flex-start; text-align: left; width: 100%; }
-.official-settings-content { min-height: 620px; }
+.official-settings-nav { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 24px; }
+.official-settings-nav button { flex-shrink: 0; min-height: 48px; }
+.official-settings-nav button[aria-selected=true] { background: var(--color-primary-fixed); }
+.official-settings-content { min-width: 0; }
 .official-settings-content > div > section { box-shadow: none; }
 .official-note-card { display: flex; flex-direction: column; gap: 16px; }
 .official-note-card h2 { font-size: 20px; line-height: 28px; margin: 0; }
@@ -79,8 +82,8 @@
 @media (max-width:1199px) { .official-page { padding: 24px; }.official-journal-grid { grid-template-columns: 260px minmax(0,1fr); }.official-notes-grid { grid-template-columns: 220px minmax(0,1fr); } }
 @media (max-width:767px) {
  .official-page { padding: 24px 16px 96px; }.official-header { flex-wrap: wrap; gap: 16px; }.official-header h1 { font-size: 28px; line-height: 36px; }
- .official-panel { padding: 20px; }.official-split,.official-journal-grid,.official-notes-grid,.official-settings-grid,.official-form-grid { grid-template-columns: minmax(0,1fr); }
+ .official-panel { padding: 20px; }.official-split,.official-journal-grid,.official-notes-grid,.official-form-grid { grid-template-columns: minmax(0,1fr); }
  .official-note-cards { grid-template-columns: minmax(0,1fr); }.official-journal-grid { min-height: 0; }.official-empty { min-height: 480px; }
- .official-settings-nav { flex-direction: row; overflow-x: auto; padding: 8px; }.official-settings-nav button { width: auto; flex-shrink: 0; }.official-settings-content { min-height: 0; }
+ .official-settings-nav { padding: 0 0 8px; }
  .official-dialog[data-slot=dialog-content] { padding: 24px; }.official-form-footer .official-button { min-width: 0; flex: 1; }
 }

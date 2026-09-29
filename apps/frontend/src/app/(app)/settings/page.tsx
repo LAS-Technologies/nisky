@@ -1,7 +1,7 @@
 "use client";
 
 import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
-import { useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthProvider";
 import { PasswordSection } from "@/components/admin/PasswordSection";
 import { PatSection } from "@/components/admin/PatSection";
@@ -29,39 +29,49 @@ export default function SettingsPage() {
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
   const [active, setActive] = useState<Tab>(visibleTabs[0]?.id ?? "profile");
 
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if (requested && tabs.some((tab) => tab.id === requested && (!tab.adminOnly || isAdmin))) {
+      startTransition(() => setActive(requested as Tab));
+    }
+  }, [isAdmin]);
+
   return (
     <OfficialPage>
-      <OfficialHeader eyebrow="AJUSTES" title="A tu manera" description="Cuida tu cuenta y adapta Nisky a tu ritmo."/>
-      <div className="official-settings-grid">
-        <div className="official-panel">
-          <h2>Tu cuenta</h2>
-          <div className="official-settings-nav" role="tablist" aria-label="Secciones de ajustes">
-            {visibleTabs.map((tab) => (
-              <button
-                className="official-button" role="tab" aria-selected={active === tab.id}
-                key={tab.id}
-                onClick={() => setActive(tab.id)}
-                type="button"
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <OfficialHeader eyebrow="AJUSTES" title="Ajustes" description={{ profile: "Haz que Nisky se sienta tuyo.", security: "Cuida el acceso a tu espacio.", notifications: "Tú decides cómo recibir tus avisos.", integrations: "Tu universidad, conectada con tu día.", admin: "Gestiona el acceso y escucha a tu comunidad." }[active]}/>
+      <div className="official-settings-nav" role="tablist" aria-label="Secciones de ajustes">
+        {visibleTabs.map((tab) => (
+          <button
+            aria-selected={active === tab.id}
+            className="official-button"
+            key={tab.id}
+            onClick={() => setActive(tab.id)}
+            role="tab"
+            type="button"
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="official-panel official-settings-content" role="tabpanel" aria-label={tabs.find(tab => tab.id === active)?.label}>
+        <div className="official-settings-content" role="tabpanel" aria-label={tabs.find(tab => tab.id === active)?.label}>
           {active === "profile" && (
-            <div className="space-y-6">
-              <ProfileSection />
-              <div>
-                 <span className="font-label-md text-label-md text-on-surface-variant">Rol</span>
-                <p className="mt-1 font-data-mono text-data-mono">{user?.role === "ADMIN" ? "Administrador" : "Miembro"}</p>
-              </div>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(240px,.85fr)]">
+              <section className="official-panel">
+                <h2>Tu perfil</h2>
+                <ProfileSection />
+              </section>
+              <aside className="official-panel">
+                <h2>Tu espacio en Nisky</h2>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">Un nombre y una imagen ayudan a reconocerte cuando colaboras.</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt="" className="mx-auto mt-5 h-36 w-full object-contain" height={180} src="/design-official/otter-at-desk.png" width={320} />
+              </aside>
             </div>
           )}
 
           {active === "security" && (
-            <div className="max-w-2xl space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
               <PasswordSection />
               <PatSection />
             </div>
@@ -94,7 +104,6 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-      </div>
     </OfficialPage>
   );
 }

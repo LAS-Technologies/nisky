@@ -36,7 +36,7 @@ export default function QuickNotesPage() {
 
   return (
     <OfficialPage>
-      <OfficialHeader eyebrow="CAPTURAS RÁPIDAS" title={view === "INBOX" ? "Ideas para después" : "Capturas archivadas"} description="Captura ahora. Decide el siguiente paso cuando estés listo." actions={<button className="official-button" data-primary onClick={openCapture}><Plus size={16}/>Nueva captura</button>}/>
+      <OfficialHeader eyebrow="MIS NOTAS" title={view === "INBOX" ? "Bandeja de entrada" : "Capturas archivadas"} description="Captura ahora. Organiza cuando tengas espacio." actions={<button className="official-button" data-primary onClick={openCapture}><Plus size={16}/>Nueva captura</button>}/>
       <div>
         <div className="flex flex-col gap-6">
           <div className="official-tabs" role="tablist" aria-label="Estado de las capturas">

@@ -70,15 +70,31 @@ export function SettingsModal({ settings, onClose }: { settings: PomodoroSetting
               <input className="field mt-1" min={1} onChange={(event) => setForm({ ...form, cyclesPerLong: Number(event.target.value) || 1 })} type="number" value={form.cyclesPerLong} />
             </label>
           </div>
-          <div className="space-y-5 py-4">
-            <label className="flex items-center gap-2 font-body-sm text-body-sm">
-              <input checked={form.autoCycle} onChange={(event) => setForm({ ...form, autoCycle: event.target.checked })} type="checkbox" />
-              Continuar automáticamente con el descanso
-            </label>
-            <label className="flex items-center gap-2 font-body-sm text-body-sm">
-              <input checked={form.soundEnabled} onChange={(event) => setForm({ ...form, soundEnabled: event.target.checked })} type="checkbox" />
-              Sonido al terminar
-            </label>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <span className="font-body-sm text-body-sm">Cambiar de fase automáticamente</span>
+              <button
+                aria-label="Cambiar de fase automáticamente"
+                aria-pressed={form.autoCycle}
+                className="official-toggle-value"
+                onClick={() => setForm({ ...form, autoCycle: !form.autoCycle })}
+                type="button"
+              >
+                {form.autoCycle ? "Sí" : "No"}
+              </button>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="font-body-sm text-body-sm">Reproducir sonido al terminar</span>
+              <button
+                aria-label="Reproducir sonido al terminar"
+                aria-pressed={form.soundEnabled}
+                className="official-toggle-value"
+                onClick={() => setForm({ ...form, soundEnabled: !form.soundEnabled })}
+                type="button"
+              >
+                {form.soundEnabled ? "Sí" : "No"}
+              </button>
+            </div>
           </div>
         </div>
         <div className="official-form-footer">

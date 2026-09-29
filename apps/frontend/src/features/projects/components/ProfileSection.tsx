@@ -200,6 +200,16 @@ export function ProfileSection() {
       </div>
 
       <div>
+        <span className="font-label-caps text-label-caps uppercase text-on-surface-variant">EMAIL</span>
+        <p className="mt-1 font-body-md text-body-md">{user?.email ?? "-"}</p>
+      </div>
+
+      <div>
+        <span className="font-label-caps text-label-caps uppercase text-on-surface-variant">ROL</span>
+        <p className="mt-1 font-body-md text-body-md">{user?.role === "ADMIN" ? "Administrador" : "Miembro"}</p>
+      </div>
+
+      <div>
         <span className="font-label-caps text-label-caps uppercase text-on-surface-variant">NOMBRE DE USUARIO</span>
         <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">
           Úsalo para que te inviten a proyectos con @tu_usuario en lugar del email. Opcional.
@@ -268,10 +278,6 @@ export function ProfileSection() {
         )}
       </div>
 
-      <div>
-        <span className="font-label-caps text-label-caps uppercase text-on-surface-variant">EMAIL</span>
-        <p className="mt-1 font-data-mono text-data-mono">{user?.email}</p>
-      </div>
     </div>
   );
 }

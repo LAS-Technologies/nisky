@@ -1,7 +1,7 @@
 "use client";
 
 import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
-import { ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, MessageSquarePlus } from "lucide-react";
 import { useState } from "react";
 import { FeedbackForm } from "@/components/feedback/FeedbackForm";
 import { MyFeedbackList } from "@/components/feedback/MyFeedbackList";
@@ -40,55 +40,65 @@ const FAQS: Array<{ question: string; answer: string }> = [
   {
     question: "¿Mis notas y mi diario son privados?",
     answer:
-      "Sí, totalmente. El diario se cifra antes de guardarse en tu dispositivo y todo lo demás está protegido con tu cuenta.",
-  },
-  {
-    question: "¿Cómo te cuento un problema o una idea?",
-    answer:
-      "Pulsa el botón Feedback en el sidebar o usa el formulario que verás abajo. Cuéntanos qué pasó y envíalo: leemos todo y podemos responderte por email si lo prefieres.",
+      "El contenido del diario se cifra antes de guardarse y solo puedes abrirlo con una sesión activa. Tus notas son privadas, salvo las que compartes en proyectos.",
   },
 ];
 
 export default function SupportPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
     <OfficialPage className="space-y-6">
-      <OfficialHeader eyebrow="AYUDA" title="Estamos para ayudarte" description="Encuentra una respuesta o cuéntanos qué necesitas."/>
-      <div className="official-panel">
-        <h2 className="font-headline-md text-headline-md text-on-surface">
-          Preguntas frecuentes
-        </h2>
-        <div className="mt-3 divide-y divide-outline-variant">
-          {FAQS.map((item, index) => {
-            const open = openIndex === index;
-            return (
-              <div key={item.question}>
-                <button
-                  aria-expanded={open}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md py-3 text-left transition-colors hover:bg-surface-container-low"
-                  onClick={() => setOpenIndex(open ? null : index)}
-                  type="button"
-                >
-                  <span className="font-body-md text-body-md text-on-surface">{item.question}</span>
-                  <ChevronDown
-                    className={`shrink-0 text-on-surface-variant transition-transform ${open ? "rotate-180" : ""}`}
-                    size={18}
-                  />
-                </button>
-                {open && (
-                  <p className="pb-3 font-body-sm text-body-sm text-on-surface-variant">
-                    {item.answer}
-                  </p>
-                )}
+      {feedbackOpen ? (
+        <>
+          <OfficialHeader eyebrow="FEEDBACK" title="Tu experiencia importa" description="Cuéntanos qué funciona y qué podemos mejorar." actions={<button className="official-button" onClick={() => setFeedbackOpen(false)} type="button"><ArrowLeft size={16} />Volver a ayuda</button>} />
+          <div className="official-split">
+            <FeedbackForm />
+            <aside className="official-panel">
+              <h2>Mis mensajes</h2>
+              <p className="mb-4 font-body-sm text-body-sm text-on-surface-variant">Gracias por ayudarnos a cuidar los detalles. Aquí puedes seguir los mensajes que compartiste con el equipo.</p>
+              <MyFeedbackList />
+            </aside>
+          </div>
+        </>
+      ) : (
+        <>
+          <OfficialHeader eyebrow="AYUDA" title="Estamos para ayudarte" description="Encuentra respuestas y sigue con tu día." />
+          <div className="official-split">
+            <div className="official-panel">
+              <h2 className="font-headline-md text-headline-md text-on-surface">Preguntas frecuentes</h2>
+              <div className="mt-3 divide-y divide-outline-variant">
+                {FAQS.map((item, index) => {
+                  const open = openIndex === index;
+                  return (
+                    <div key={item.question}>
+                      <button
+                        aria-expanded={open}
+                        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md py-3 text-left transition-colors hover:bg-surface-container-low"
+                        onClick={() => setOpenIndex(open ? null : index)}
+                        type="button"
+                      >
+                        <span className="font-body-md text-body-md text-on-surface">{item.question}</span>
+                        <ChevronDown className={`shrink-0 text-on-surface-variant transition-transform ${open ? "rotate-180" : ""}`} size={18} />
+                      </button>
+                      {open && <p className="pb-3 font-body-sm text-body-sm text-on-surface-variant">{item.answer}</p>}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <FeedbackForm />
-      <MyFeedbackList />
+            </div>
+            <aside className="official-panel">
+              <h2>Te escuchamos</h2>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img alt="" className="mx-auto my-5 h-36 w-full object-contain" height={180} src="/design-official/otter-at-desk.png" width={320} />
+              <h3 className="font-headline-sm text-headline-sm">¿No encontraste lo que buscabas?</h3>
+              <p className="mt-2 font-body-sm text-body-sm text-on-surface-variant">Cuéntanos tu duda o comparte una idea para mejorar Nisky.</p>
+              <button className="official-button mt-4 w-full" data-primary onClick={() => setFeedbackOpen(true)} type="button"><MessageSquarePlus size={16} />Enviar feedback</button>
+            </aside>
+          </div>
+        </>
+      )}
     </OfficialPage>
   );
 }
