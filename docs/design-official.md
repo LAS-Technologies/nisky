@@ -17,10 +17,10 @@ Cada turno completa un módulo y registra validación y pendientes aquí. No cam
 | 1 | Base compartida e Inicio (00); navegación, perfil y captura existentes | Sidebar, TopAppBar, BrandMark, `/`, tarjetas de Inicio | Implementado y validado |
 | 2 | Proyectos: listado, resumen, tareas, notas, recursos, actividad, equipo, conversación (01–08); crear proyecto (35), invitaciones (40), vacío (45) | `/projects`, `/projects/[id]` | Implementado y validado |
 | 3 | Tareas: lista, sin fecha, detalle (09–11), crear (36), error (46) | `/tasks` y paneles de tarea | Implementado y validado |
-| 4 | Agenda semanal, eventos, enfoque (12–14), ventana flotante (34), crear bloque/evento (37–38), configuración de enfoque (42), detalle de bloque (44) | `/timeblocks`, `/events`, `/focus`, `/pomodoro-window` | Revisado y alineado; build validado |
-| 5 | Diario, editor y protegido (15–17); notas, crear/editar y vista previa (18–20, 43) | `/journal`, `/knowledge`, `/knowledge/new`, `/knowledge/[id]/edit` | Revisado y alineado; build validado |
-| 6 | Capturas, recordatorios (21–22), captura rápida (39), gestión de hábitos (41) | `/quick-notes`, `/reminders`, CaptureComposer, HabitManager | Revisado y alineado; build validado |
-| 7 | Perfil, seguridad, notificaciones, integraciones y administración (23–28); ayuda/feedback (29–30), acceso/registro/registro pausado (31–33) | `/settings`, `/support`, `/login`, `/register` | Revisado y alineado; build validado |
+| 4 | Agenda semanal, eventos, enfoque (12–14), ventana flotante (34), crear bloque/evento (37–38), configuración de enfoque (42), detalle de bloque (44) | `/timeblocks`, `/events`, `/focus`, `/pomodoro-window` | Implementación parcial; comparación por nodo y escenarios pendientes |
+| 5 | Diario, editor y protegido (15–17); notas, crear/editar y vista previa (18–20, 43) | `/journal`, `/knowledge`, `/knowledge/new`, `/knowledge/[id]/edit` | Pendiente: composición del editor del diario y revisión restante |
+| 6 | Capturas, recordatorios (21–22), captura rápida (39), gestión de hábitos (41) | `/quick-notes`, `/reminders`, CaptureComposer, HabitManager | Pendiente: adaptación de captura rápida y hábitos |
+| 7 | Perfil, seguridad, notificaciones, integraciones y administración (23–28); ayuda/feedback (29–30), acceso/registro/registro pausado (31–33) | `/settings`, `/support`, `/login`, `/register` | Pendiente: perfil, notificaciones, acceso y revisión restante |
 
 Las pantallas de escritorio son la referencia visual. Mantener una adaptación móvil funcional usando la navegación móvil existente; no convertir los marcos de Figma en lienzos de tamaño fijo.
 
@@ -81,6 +81,8 @@ Las pantallas de escritorio son la referencia visual. Mantener una adaptación m
 - Revisión independiente con Astra: se corrigieron la selección de pestaña al abrir Ajustes con `?tab=notifications`, los nombres accesibles de los toggles y el email duplicado en el perfil.
 
 ## Criterio de cierre por módulo
+
+La [comparación en navegador del 29 de septiembre](design-comparison-2026-09-29/README.md) corrige el estado anterior de los módulos 4–7: el build y la revisión estática no acreditaban alineación visual. El informe incluye seis comparaciones directas y los límites de la ejecución responsive. Estos módulos siguen abiertos.
 
 1. Consultar los nodos oficiales con la skill Figma a código.
 2. Reutilizar componentes y mantener permisos, datos reales y acciones existentes.
