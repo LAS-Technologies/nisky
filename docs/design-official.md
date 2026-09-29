@@ -17,10 +17,10 @@ Cada turno completa un módulo y registra validación y pendientes aquí. No cam
 | 1 | Base compartida e Inicio (00); navegación, perfil y captura existentes | Sidebar, TopAppBar, BrandMark, `/`, tarjetas de Inicio | Implementado y validado |
 | 2 | Proyectos: listado, resumen, tareas, notas, recursos, actividad, equipo, conversación (01–08); crear proyecto (35), invitaciones (40), vacío (45) | `/projects`, `/projects/[id]` | Implementado y validado |
 | 3 | Tareas: lista, sin fecha, detalle (09–11), crear (36), error (46) | `/tasks` y paneles de tarea | Implementado y validado |
-| 4 | Agenda semanal, eventos, enfoque (12–14), ventana flotante (34), crear bloque/evento (37–38), configuración de enfoque (42), detalle de bloque (44) | `/timeblocks`, `/events`, `/focus`, `/pomodoro-window` | Pendiente |
-| 5 | Diario, editor y protegido (15–17); notas, crear/editar y vista previa (18–20, 43) | `/journal`, `/knowledge`, `/knowledge/new`, `/knowledge/[id]/edit` | Pendiente |
-| 6 | Capturas, recordatorios (21–22), captura rápida (39), gestión de hábitos (41) | `/quick-notes`, `/reminders`, CaptureComposer, HabitManager | Pendiente |
-| 7 | Perfil, seguridad, notificaciones, integraciones y administración (23–28); ayuda/feedback (29–30), acceso/registro/registro pausado (31–33) | `/settings`, `/support`, `/login`, `/register` | Pendiente |
+| 4 | Agenda semanal, eventos, enfoque (12–14), ventana flotante (34), crear bloque/evento (37–38), configuración de enfoque (42), detalle de bloque (44) | `/timeblocks`, `/events`, `/focus`, `/pomodoro-window` | Revisado y alineado; build validado |
+| 5 | Diario, editor y protegido (15–17); notas, crear/editar y vista previa (18–20, 43) | `/journal`, `/knowledge`, `/knowledge/new`, `/knowledge/[id]/edit` | Revisado y alineado; build validado |
+| 6 | Capturas, recordatorios (21–22), captura rápida (39), gestión de hábitos (41) | `/quick-notes`, `/reminders`, CaptureComposer, HabitManager | Revisado y alineado; build validado |
+| 7 | Perfil, seguridad, notificaciones, integraciones y administración (23–28); ayuda/feedback (29–30), acceso/registro/registro pausado (31–33) | `/settings`, `/support`, `/login`, `/register` | Revisado y alineado; build validado |
 
 Las pantallas de escritorio son la referencia visual. Mantener una adaptación móvil funcional usando la navegación móvil existente; no convertir los marcos de Figma en lienzos de tamaño fijo.
 
@@ -69,6 +69,16 @@ Las pantallas de escritorio son la referencia visual. Mantener una adaptación m
 - Validación: ESLint de los archivos modificados, TypeScript y build de producción con Webpack. Navegador con API simulada: crear/cancelar, recurrencia y recordatorio, completar tarea, buscar, selección, lista/sin fecha, reintentar tras error, editar descripción y fecha, añadir/completar subtareas, comentar y abrir enfoque.
 - Revisión visual a 1448, 390, 768 y 1024 px; formulario, detalle, lista, estado vacío y error. Textos largos y contenedores revisados sin desbordamiento horizontal. Se conserva la firma LAS inferior izquierda. Las pruebas no modificaron datos de negocio ni sustituyen una prueba integral contra el backend.
 - Siguiente turno: módulo 4, Agenda y enfoque.
+
+## Revisión de módulos 4–7
+
+- Agenda y enfoque: las vistas oficiales ya tenían rutas y flujos funcionales. Se alinearon los controles Sí/No de Pomodoro con Figma y se añadieron nombres accesibles.
+- Diario y notas: se alinearon el texto de bienvenida y el estado «Diario protegido» con Figma, usando la ilustración aprobada; la portada conserva un aviso inferior sobre el cifrado.
+- Capturas, recordatorios y hábitos: se alinearon el título de la bandeja, los campos separados de fecha/hora, el acceso a notificaciones y el título del gestor de hábitos. Los recordatorios ahora ofrecen reintento ante errores de carga.
+- Ajustes, ayuda y acceso: se añadieron pestañas horizontales, el acceso directo a Notificaciones desde Recordatorios y la tarjeta de perfil. Ayuda y Feedback ahora tienen vistas diferenciadas en `/support`.
+- El contenido del diario se cifra en el backend; el texto de ayuda refleja ese comportamiento y aclara que las notas compartidas en proyectos pueden tener colaboradores.
+- Validación: `cd apps/frontend && bun run build --webpack` correcto, con TypeScript. No se hizo una sesión de navegador ni una revisión visual responsive de las pantallas; queda pendiente para validar estados e interacciones sobre la aplicación en ejecución.
+- Revisión independiente con Astra: se corrigieron la selección de pestaña al abrir Ajustes con `?tab=notifications`, los nombres accesibles de los toggles y el email duplicado en el perfil.
 
 ## Criterio de cierre por módulo
 
