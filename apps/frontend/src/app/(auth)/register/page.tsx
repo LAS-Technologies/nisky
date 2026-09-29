@@ -32,7 +32,7 @@ export default function RegisterPage() {
         <span className="font-headline-lg text-headline-lg font-bold tracking-tight text-primary">Nisky</span>
       </div>
 
-      <div className="rounded-lg border border-outline-variant bg-surface p-6 shadow-cadence-2 sm:p-8">
+      <div className="official-panel official-auth-card">
         {config.isLoading ? (
           <p className="py-8 text-center font-body-sm text-body-sm text-on-surface-variant">Cargando...</p>
         ) : config.data?.publicSignup === false ? (
@@ -65,7 +65,7 @@ export default function RegisterPage() {
               <Field label="Confirmar contraseña" error={errors.confirmPassword?.message}>
                 <PasswordInput autoComplete="new-password" {...register("confirmPassword")} />
               </Field>
-               <Button className="w-full font-body-md text-body-md !text-white" disabled={!isHydrated || isPending} type="submit">
+               <Button className="w-full min-h-12 rounded-lg font-body-md text-body-md !text-white" disabled={!isHydrated || isPending} type="submit">
                 {isPending ? "Creando..." : "Crear cuenta"}
                 {!isPending && <ArrowRight aria-hidden="true" size={16} />}
               </Button>

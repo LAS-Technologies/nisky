@@ -72,14 +72,6 @@ function AuthenticatedAppLayout({ children }: { children: React.ReactNode }) {
     return <div className="flex min-h-screen items-center justify-center font-body-sm text-body-sm text-on-surface-variant">Cargando sesión...</div>;
   }
 
-  if (pathname === "/focus") {
-    return (
-      <>
-        {children}
-        <QuickCaptureModal initialMode={capture.mode} onClose={capture.close} open={capture.isOpen} />
-      </>
-    );
-  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -92,7 +84,7 @@ function AuthenticatedAppLayout({ children }: { children: React.ReactNode }) {
       </TasksSidebarProvider>
       <PendingRemindersGate />
       <QuickCaptureModal initialMode={capture.mode} onClose={capture.close} open={capture.isOpen} />
-      <FloatingPomodoro />
+      {pathname !== "/focus" && <FloatingPomodoro />}
       <MobileBottomNav />
     </div>
   );

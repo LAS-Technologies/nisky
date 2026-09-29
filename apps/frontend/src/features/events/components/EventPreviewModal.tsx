@@ -1,4 +1,5 @@
 "use client";
+import "@/components/ui/official.css";
 
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -418,7 +419,7 @@ export function EventPreviewModal({
 
   return (
     <>
-      <PreviewSheet
+      <PreviewSheet centered
       eyebrow="Evento"
       eyebrowBadge
       eyebrowClassName="border-secondary/20 bg-secondary-container text-secondary"

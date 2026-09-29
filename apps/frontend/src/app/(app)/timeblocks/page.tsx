@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
+import { OfficialHeader } from "@/components/ui/OfficialPage";
+import { AgendaCreateDialog } from "@/features/timeblocks/components/AgendaCreateDialog";
+import "@/features/timeblocks/components/agenda.css";
 import { ChevronLeft, ChevronRight, Plus, SlidersHorizontal } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useProjectsQuery } from "@/features/projects/hooks/useProjects";
 import { TimeBlockPreviewModal } from "@/features/timeblocks/components/TimeBlockPreviewModal";
@@ -10,7 +14,6 @@ import { MobileAgenda } from "@/features/timeblocks/components/MobileAgenda";
 import { AgendaEntryChooser, type AgendaEntryKind } from "@/features/timeblocks/components/AgendaEntryChooser";
 import { AgendaDayTasksDialog } from "@/features/timeblocks/components/AgendaDayTasksDialog";
 import { EventPreviewModal } from "@/features/events/components/EventPreviewModal";
-import { PROJECT_COLORS } from "@/components/ui/ColorPicker";
 import { useTasksQuery } from "@/features/tasks/hooks/useTasks";
 import {
   useTimeBlockMutations,
@@ -182,7 +185,7 @@ function TimeBlocksContent() {
   const [previewingEvent, setPreviewingEvent] = useState<CalendarEvent | null>(null);
   const [dayTaskDate, setDayTaskDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const creatingEntryRef = useRef(false);
+  const [creatingKind, setCreatingKind] = useState<AgendaEntryKind | null>(null);
   const [resolveDraft, setResolveDraft] = useState<{
     block: TimeBlock;
     startMin: number;
@@ -294,69 +297,10 @@ function TimeBlocksContent() {
     setEntryChooserOpen(true);
   };
 
-  const createEventAndOpen = async (slot: SlotPrefill) => {
-    if (creatingEntryRef.current) return;
-    creatingEntryRef.current = true;
-    try {
-      const created = await eventMutations.createEvent.mutateAsync({
-        title: "Nuevo evento",
-        date: slot.date,
-        allDay: false,
-        startMin: slot.startMin,
-        endMin: slot.endMin,
-        color: PROJECT_COLORS[0] ?? "#0f172a",
-        recurrenceType: null,
-        recurrenceInterval: 1,
-        recurrenceDaysOfWeek: [],
-        recurrenceDayOfMonth: null,
-        recurrenceEndsAt: null,
-        remindBeforeMin: 0,
-      });
-      setPreviewingBlock(null);
-      setPreviewBlockDate(null);
-      setPreviewingEvent(created);
-      toast.success("Evento creado");
-    } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "Ups, no pudimos crear el evento. Inténtalo de nuevo.");
-    } finally {
-      creatingEntryRef.current = false;
-    }
-  };
-
-  const createBlockAndOpen = async (slot: SlotPrefill) => {
-    if (creatingEntryRef.current) return;
-    creatingEntryRef.current = true;
-    try {
-      const created = await mutations.create.mutateAsync({
-        projectId: null,
-        date: slot.date,
-        name: "Nuevo bloque",
-        daysOfWeek: [slot.dayOfWeek],
-        startMin: slot.startMin,
-        endMin: slot.endMin,
-        repeatEveryWeeks: 1,
-        repeatEndsAt: null,
-        remindBeforeMin: 0,
-      });
-      setPreviewingEvent(null);
-      setPreviewingBlock(created);
-      setPreviewBlockDate(parseDateOnly(created.date ?? slot.date));
-      toast.success("Bloque creado");
-    } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "Ups, no pudimos crear el bloque. Inténtalo de nuevo.");
-    } finally {
-      creatingEntryRef.current = false;
-    }
-  };
-
   const selectAgendaEntry = (kind: AgendaEntryKind) => {
-    const slot = entrySlot ?? defaultAgendaSlot();
+    setEntrySlot(entrySlot ?? defaultAgendaSlot());
     setEntryChooserOpen(false);
-    if (kind === "event") {
-      void createEventAndOpen(slot);
-      return;
-    }
-    void createBlockAndOpen(slot);
+    setCreatingKind(kind);
   };
 
   const openBlockPreview = (block: TimeBlock, date?: Date) => {
@@ -553,7 +497,7 @@ function TimeBlocksContent() {
   };
 
   return (
-    <section className="h-full overflow-y-auto bg-background lg:flex lg:flex-col lg:overflow-hidden">
+    <section className="official-page official-agenda">
       <div className="lg:hidden">
         <MobileAgenda
           blocks={blocks}
@@ -577,20 +521,10 @@ function TimeBlocksContent() {
           weekStart={mobileWeekStart}
         />
       </div>
-      <div className="hidden min-h-0 flex-1 flex-col p-container-padding sm:p-section-gap lg:flex">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-outline-variant pb-5">
-        <div>
-          <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">
-             PLANIFICA TU TIEMPO
-          </p>
-          <h1 className="mt-1 font-headline-md text-headline-md text-on-surface">
-            Agenda
-          </h1>
-          <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
-             Organiza bloques de trabajo y eventos para saber qué toca y cuándo.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="hidden min-h-0 flex-1 flex-col lg:flex">
+      <OfficialHeader eyebrow="AGENDA" title="Tu semana, con espacio" description="Reserva tiempo para lo que importa." actions={<button className="official-button" data-primary onClick={() => openEntryChooser()}><Plus size={16}/>Añadir</button>}/>
+      <div className="official-toolbar">
+          <button className="official-button" onClick={() => setWeekOffset(0)}>Hoy</button>
           {weekOffset !== 0 && (
             <button
               className="min-h-11 rounded-md px-2.5 font-body-sm text-body-sm text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-secondary sm:min-h-10"
@@ -635,15 +569,8 @@ function TimeBlocksContent() {
             <SlidersHorizontal size={14} />
             <span>Horario</span>
           </button>
-          <button
-            className="hidden min-h-11 items-center gap-2 rounded-md bg-primary px-4 py-2 font-body-sm text-body-sm text-on-primary transition-colors hover:bg-primary/90 sm:flex sm:min-h-10"
-            onClick={() => openEntryChooser()}
-            type="button"
-          >
-            <Plus size={16} />
-            Añadir
-          </button>
-        </div>
+          <span className="official-button" aria-current="page">Semana</span>
+          <Link className="official-button" href="/events">Eventos</Link>
       </div>
 
       {settingsOpen && (
@@ -741,6 +668,11 @@ function TimeBlocksContent() {
          />
        )}
 
+      {creatingKind && <AgendaCreateDialog kind={creatingKind} slot={entrySlot ?? defaultAgendaSlot()} onClose={() => setCreatingKind(null)} onCreated={result => {
+        setCreatingKind(null);
+        if (result.kind === "event") { setPreviewingBlock(null); setPreviewingEvent(result.event); }
+        else { setPreviewingEvent(null); setPreviewingBlock(result.block); setPreviewBlockDate(parseDateOnly(result.date)); }
+      }}/>}
       {entryChooserOpen && (
         <AgendaEntryChooser
           onClose={() => setEntryChooserOpen(false)}

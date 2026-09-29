@@ -1,5 +1,6 @@
 "use client";
 
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
 import { Inbox, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -34,37 +35,25 @@ export default function QuickNotesPage() {
   const openPreview = (note: QuickNote) => setPreviewing(note);
 
   return (
-    <section className="h-full min-h-0 overflow-y-auto bg-background">
-      <header className="mx-auto flex w-full max-w-6xl flex-col gap-4 bg-transparent p-container-padding sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:pb-0 sm:pt-8 lg:px-10">
-        <div>
-          <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">CAPTURAS RÁPIDAS</p>
-          <h1 className="mt-1 font-display-hero-mobile text-display-hero-mobile text-on-surface sm:font-display-hero sm:text-display-hero">{view === "INBOX" ? "Bandeja de entrada" : "Capturas archivadas"}</h1>
-          <p className="mt-2 max-w-xl font-body-sm text-body-sm text-on-surface-variant">{view === "INBOX" ? "Captura ideas y decide qué hacer con ellas después." : "Revisa las capturas que archivaste."}</p>
-        </div>
-        <div className="hidden w-full items-center justify-end gap-2 sm:flex sm:w-auto">
-          <button className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-3.5 font-body-sm text-body-sm text-on-primary transition-colors hover:bg-primary/90" onClick={openCapture} type="button">
-            <Plus size={16} /> Nueva captura
-          </button>
-        </div>
-      </header>
-
+    <OfficialPage>
+      <OfficialHeader eyebrow="CAPTURAS RÁPIDAS" title={view === "INBOX" ? "Ideas para después" : "Capturas archivadas"} description="Captura ahora. Decide el siguiente paso cuando estés listo." actions={<button className="official-button" data-primary onClick={openCapture}><Plus size={16}/>Nueva captura</button>}/>
       <div>
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-container-padding pb-24 sm:px-6 sm:py-8 lg:px-10">
-          <div className="grid grid-cols-2 gap-1 rounded-lg border border-outline-variant bg-surface-container-low p-1" role="tablist" aria-label="Estado de las capturas">
+        <div className="flex flex-col gap-6">
+          <div className="official-tabs" role="tablist" aria-label="Estado de las capturas">
             {([
               ["INBOX", "Pendientes", inboxQuery.data?.length ?? 0],
               ["ARCHIVED", "Archivadas", archivedQuery.data?.length ?? 0],
             ] as const).map(([value, label, count]) => (
               <button
                 aria-selected={view === value}
-                className={`flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 font-label-md text-label-md transition-colors ${view === value ? "bg-primary text-on-primary shadow-cadence-1" : "text-on-surface-variant hover:bg-surface-container-lowest hover:text-on-surface"}`}
+                className="inline-flex items-center gap-2"
                 key={value}
                 onClick={() => setView(value)}
                 role="tab"
                 type="button"
               >
                 {label}
-                <span className={view === value ? "text-on-primary/75" : "text-on-surface-variant/70"}>{count}</span>
+                <span className="text-on-surface-variant">{count}</span>
               </button>
             ))}
           </div>
@@ -108,6 +97,6 @@ export default function QuickNotesPage() {
       <div className="sm:hidden">
         <FAB ariaLabel="Nueva captura" onClick={openCapture} raised={capture.isOpen || Boolean(previewing)} />
       </div>
-    </section>
+    </OfficialPage>
   );
 }

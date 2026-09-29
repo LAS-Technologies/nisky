@@ -1,4 +1,5 @@
 "use client";
+import "@/components/ui/official.css";
 
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -493,7 +494,7 @@ export function TimeBlockPreviewModal({
 
   return (
     <>
-      <PreviewSheet
+      <PreviewSheet centered
         eyebrow="Bloque de tiempo"
         eyebrowBadge
         eyebrowClassName="border-primary/20 bg-primary-fixed text-primary"

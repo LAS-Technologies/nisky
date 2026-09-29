@@ -1,4 +1,5 @@
 "use client";
+import "@/components/ui/official.css";
 
 import { useState } from "react";
 import { FileText, Maximize2, Pencil, Pin, Trash2, X } from "lucide-react";
@@ -167,7 +168,7 @@ export function NotePreviewModal({
   }
 
   return (
-    <PreviewSheet
+    <PreviewSheet centered
       eyebrow="Nota"
       footer={
         <div className="flex w-full flex-wrap items-center gap-2">

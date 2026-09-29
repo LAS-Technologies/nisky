@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/command";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import {
+  Drawer,
   DrawerClose,
   DrawerContent,
   DrawerDescription,
@@ -47,6 +48,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import type { ComponentProps } from "react";
 import { PreviewSheet } from "@/components/ui/PreviewSheet";
 import {
   Select,
@@ -143,7 +145,7 @@ function PreviewDetail({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-[13px] leading-5">
+    <div className="task-detail-field flex items-center justify-between gap-4 text-[13px] leading-5">
       <dt className="flex min-w-0 items-center gap-2 text-on-surface-variant">
         <Icon
           aria-hidden="true"
@@ -160,6 +162,7 @@ function PreviewDetail({
 }
 
 export function TaskDetailsPanel({
+  presentation = "sheet",
   task,
   onClose,
   onAddSubtask,
@@ -172,6 +175,7 @@ export function TaskDetailsPanel({
   onDelete,
 }: {
   task: Task;
+  presentation?: "sheet" | "page";
   onClose: () => void;
   onAddSubtask: (taskId: string, title: string) => Promise<void>;
   onDeleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
@@ -191,6 +195,7 @@ export function TaskDetailsPanel({
   onDelete: (taskId: string) => Promise<void>;
 }) {
   const detailQuery = useTaskQuery(task.id);
+  const DateDrawer = presentation === "page" ? Drawer : DrawerNestedRoot;
   const current = detailQuery.data ?? task;
   const isMobile = useIsMobile(1023);
   const [pendingSubtaskId, setPendingSubtaskId] = useState<string | null>(null);
@@ -814,7 +819,10 @@ export function TaskDetailsPanel({
 
   return (
     <>
-      <PreviewSheet
+      <TaskPresentation
+        presentation={presentation}
+        projectName={selectedProject?.name}
+        completeAction={<button className="tasks-button" data-primary disabled={pendingTaskField !== null} onClick={() => void updateTaskField("status", { status: displayStatus === "COMPLETED" ? "PENDING" : "COMPLETED" }, { status: displayStatus === "COMPLETED" ? "PENDING" : "COMPLETED" }, "No pudimos actualizar el estado.")}>{displayStatus === "COMPLETED" ? "Marcar pendiente" : "Marcar completada"}</button>}
         eyebrow="Tarea"
         eyebrowBadge
         eyebrowIcon={ListChecks}
@@ -830,7 +838,7 @@ export function TaskDetailsPanel({
               <Trash2 size={16} /> Eliminar
             </button>
             <div className="ml-auto flex min-w-0 flex-1 gap-2">
-              {onStartPomodoro && (
+              {onStartPomodoro && presentation === "sheet" && (
                 <button
                   className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-outline-variant px-3 py-2.5 font-label-md text-label-md font-semibold text-on-surface hover:bg-surface-container-low hover:text-primary"
                   onClick={onStartPomodoro}
@@ -935,11 +943,12 @@ export function TaskDetailsPanel({
           )
         }
       >
-        {activePanel === "details" ? (
-          <div className="space-y-7">
-            <section className="rounded-2xl border border-outline-variant/70 bg-surface-container-low/70 p-4">
+        {(presentation === "page" || activePanel === "details") ? (
+          <div className={presentation === "page" ? "task-detail-grid" : "space-y-7"}>
+            <section className="task-detail-properties rounded-2xl border border-outline-variant/70 bg-surface-container-low/70 p-4">
+              {presentation === "page" && <h2>Detalles</h2>}
               <dl className="space-y-3">
-                <PreviewDetail icon={Circle} label="Estado">
+                {presentation === "sheet" && <PreviewDetail icon={Circle} label="Estado">
                   <TaskStatusSelect
                     disabled={pendingTaskField !== null}
                     onChange={(status) =>
@@ -952,21 +961,8 @@ export function TaskDetailsPanel({
                     }
                     value={displayStatus}
                   />
-                </PreviewDetail>
-                <PreviewDetail icon={Flag} label="Prioridad">
-                  <TaskPrioritySelect
-                    disabled={pendingTaskField !== null}
-                    onChange={(priority) =>
-                      void updateTaskField(
-                        "priority",
-                        { priority },
-                        { priority },
-                        "No pudimos actualizar la prioridad.",
-                      )
-                    }
-                    value={displayPriority}
-                  />
-                </PreviewDetail>
+                </PreviewDetail>}
+
                 <PreviewDetail icon={ListChecks} label="Proyecto">
                   <Popover open={projectOpen} onOpenChange={setProjectOpen}>
                     <PopoverTrigger asChild>
@@ -1063,9 +1059,42 @@ export function TaskDetailsPanel({
                     </PopoverContent>
                   </Popover>
                 </PreviewDetail>
-                <PreviewDetail icon={CalendarDays} label="Vencimiento">
+<PreviewDetail icon={Flag} label="Prioridad">
+                  <TaskPrioritySelect
+                    disabled={pendingTaskField !== null}
+                    onChange={(priority) =>
+                      void updateTaskField(
+                        "priority",
+                        { priority },
+                        { priority },
+                        "No pudimos actualizar la prioridad.",
+                      )
+                    }
+                    value={displayPriority}
+                  />
+                </PreviewDetail>
+{presentation === "page" && <PreviewDetail icon={UserRound} label="Responsable">
+                    <TaskAssigneeSelect
+                      disabled={
+                        pendingTaskField !== null ||
+                        !displayProjectId ||
+                        membersQuery.isLoading
+                      }
+                      onChange={(assigneeId) =>
+                        void updateTaskField(
+                          "assigneeId",
+                          { assigneeId },
+                          { assigneeId },
+                          "No pudimos actualizar el responsable.",
+                        )
+                      }
+                      options={assigneeOptions}
+                      value={displayAssigneeId}
+                    />
+                  </PreviewDetail>}
+                <PreviewDetail icon={CalendarDays} label="Fecha límite">
                   {isMobile ? (
-                    <DrawerNestedRoot
+                    <DateDrawer
                       fixed
                       handleOnly
                       open={dueDateOpen}
@@ -1098,7 +1127,7 @@ export function TaskDetailsPanel({
                           {dueDateEditor}
                         </div>
                       </DrawerContent>
-                    </DrawerNestedRoot>
+                    </DateDrawer>
                   ) : (
                     <Popover
                       open={dueDateOpen}
@@ -1136,7 +1165,7 @@ export function TaskDetailsPanel({
                     </Popover>
                   )}
                 </PreviewDetail>
-                <PreviewDetail icon={UserRound} label="Creado por">
+                {presentation === "sheet" && <PreviewDetail icon={UserRound} label="Creado por">
                   {current.user ? (
                     <span className="inline-flex min-w-0 max-w-[13rem] items-center gap-1.5 text-left">
                       <Avatar
@@ -1152,11 +1181,18 @@ export function TaskDetailsPanel({
                   ) : (
                     <span className="text-on-surface-variant">Sin información</span>
                   )}
-                </PreviewDetail>
-                <PreviewDetail icon={CalendarPlus} label="Creada el">
+                </PreviewDetail>}
+                {presentation === "sheet" && <PreviewDetail icon={CalendarPlus} label="Creada el">
                   <span>{createdAtLabel(current.createdAt)}</span>
-                </PreviewDetail>
+                </PreviewDetail>}
               </dl>
+              {presentation === "page" && <div className="task-detail-reminder-inline"><TaskReminderPanel
+              dueDate={displayDueDate}
+              recurrence={displayRecurrence}
+              taskId={current.id}
+              taskTitle={current.title}
+            /></div>}
+              {presentation === "page" && onStartPomodoro && <button className="tasks-button task-focus-button" data-primary onClick={onStartPomodoro}><Timer size={16}/>Iniciar enfoque</button>}
               <button
                 aria-controls="task-preview-extra-details"
                 aria-expanded={detailsOpen}
@@ -1175,7 +1211,7 @@ export function TaskDetailsPanel({
               </button>
               {detailsOpen && (
                 <dl className="mt-3 space-y-3" id="task-preview-extra-details">
-                  <PreviewDetail icon={UserRound} label="Responsable">
+                  {presentation === "sheet" && <PreviewDetail icon={UserRound} label="Responsable">
                     <TaskAssigneeSelect
                       disabled={
                         pendingTaskField !== null ||
@@ -1193,7 +1229,26 @@ export function TaskDetailsPanel({
                       options={assigneeOptions}
                       value={displayAssigneeId}
                     />
-                  </PreviewDetail>
+                  </PreviewDetail>}
+{presentation === "page" && <><PreviewDetail icon={UserRound} label="Creado por">
+                  {current.user ? (
+                    <span className="inline-flex min-w-0 max-w-[13rem] items-center gap-1.5 text-left">
+                      <Avatar
+                        avatarUrl={current.user.avatarUrl}
+                        email={current.user.email}
+                        name={current.user.name}
+                        size="sm"
+                      />
+                      <span className="min-w-0 truncate">
+                        {current.user.name ?? current.user.email}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-on-surface-variant">Sin información</span>
+                  )}
+                </PreviewDetail><PreviewDetail icon={CalendarPlus} label="Creada el">
+                  <span>{createdAtLabel(current.createdAt)}</span>
+                </PreviewDetail></>}
                   <PreviewDetail icon={Repeat2} label="Recurrencia">
                     <span className="flex flex-col items-end gap-2">
                       <Select
@@ -1302,14 +1357,14 @@ export function TaskDetailsPanel({
               )}
             </section>
 
-            <TaskReminderPanel
+            {presentation === "sheet" && <TaskReminderPanel
               dueDate={displayDueDate}
               recurrence={displayRecurrence}
               taskId={current.id}
               taskTitle={current.title}
-            />
+            />}
 
-            <section className="space-y-2">
+            <section className="task-detail-description space-y-2">
               <h3 className="font-label-caps text-label-caps uppercase text-on-surface-variant">
                 Descripción
               </h3>
@@ -1364,14 +1419,15 @@ export function TaskDetailsPanel({
                   />
                 </button>
               )}
+              {presentation === "page" && <div className="task-description-status"><TaskStatusSelect disabled={pendingTaskField !== null} value={displayStatus} onChange={status => void updateTaskField("status", { status }, { status }, "No pudimos actualizar el estado.")}/></div>}
             </section>
 
-            <section className="space-y-3">
+            <section className="task-detail-subtasks space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-label-caps text-label-caps uppercase text-on-surface-variant">
-                  Subtareas
+                  Subtareas{presentation === "page" && ` · ${completedSubtasks} de ${visibleSubtasks.length}`}
                 </h3>
-                <span className="font-data-mono text-data-mono text-[11px] font-semibold text-on-surface-variant">
+                <span className={cn("font-data-mono text-data-mono text-[11px] font-semibold text-on-surface-variant", presentation === "page" && "hidden")}>
                   {visibleSubtasks.length > 0
                     ? `${completedSubtasks}/${visibleSubtasks.length}`
                     : "Ninguna"}
@@ -1545,6 +1601,7 @@ export function TaskDetailsPanel({
                 </button>
               </form>
             </section>
+            {presentation === "page" && <section className="task-detail-comments"><h2>Comentarios</h2><CommentThread kind="task" id={current.id} projectId={displayProjectId}/></section>}
           </div>
         ) : (
           <div className="flex h-[min(60dvh,32rem)] min-h-[24rem] flex-col rounded-2xl border border-outline-variant/70 bg-surface-container-low/40 p-4">
@@ -1570,7 +1627,7 @@ export function TaskDetailsPanel({
             </div>
           </div>
         )}
-      </PreviewSheet>
+      </TaskPresentation>
       {confirmDelete && (
         <ConfirmModal
           confirmLabel="Eliminar"
@@ -1589,4 +1646,16 @@ export function TaskDetailsPanel({
       )}
     </>
   );
+}
+
+function TaskPresentation({ presentation, projectName, completeAction, ...props }: ComponentProps<typeof PreviewSheet> & { presentation: "sheet" | "page"; projectName?: string; completeAction: ReactNode }) {
+  if (presentation === "sheet") return <PreviewSheet {...props}/>;
+  return <div className="task-detail-page">
+    <header className="tasks-heading">
+      <div><button className="tasks-eyebrow hover:underline" onClick={props.onClose}>← VOLVER A TAREAS</button><h1>{props.title}</h1><p className="tasks-muted">{projectName ?? "Sin proyecto"} / Tareas</p></div>
+      {completeAction}
+    </header>
+    {props.children}
+    <footer className="task-detail-footer">{props.footer}</footer>
+  </div>;
 }

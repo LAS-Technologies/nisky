@@ -104,7 +104,7 @@ export function JournalEditor({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-container-padding overflow-hidden rounded-lg border border-outline-variant bg-surface p-container-padding shadow-cadence-1 sm:p-section-gap">
+    <div className="official-panel official-journal-editor flex min-h-[722px] flex-col gap-5">
       <div>
         <p className="font-label-caps text-label-caps text-on-surface-variant">MI DIARIO</p>
         <div className="flex items-center gap-2">

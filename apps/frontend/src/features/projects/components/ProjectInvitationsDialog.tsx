@@ -27,7 +27,7 @@ export function ProjectInvitationsDialog({ open, onOpenChange, project }: { open
     try { await (accept ? replies.accept : replies.decline).mutateAsync(id); toast.success(accept ? "¡Invitación aceptada!" : "Invitación rechazada"); }
     catch { toast.error("No pudimos responder a la invitación."); }
   };
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="project-dialog sm:max-w-[720px]">
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="project-dialog project-invitations-dialog sm:max-w-[720px]" overlayClassName="bg-[#0f1f33]/24 supports-backdrop-filter:backdrop-blur-none">
     <DialogHeader className="text-left"><DialogTitle>Colabora a tu ritmo</DialogTitle><DialogDescription className="project-muted mt-4">Invita a alguien o revisa lo que compartieron contigo.</DialogDescription></DialogHeader>
     <div className="project-tabs"><button className="project-button" aria-pressed={tab === "received"} onClick={() => setTab("received")}>Recibidas</button><button className="project-button" aria-pressed={tab === "invite"} onClick={() => setTab("invite")}>Invitar</button></div>
     {tab === "received" ? <div className="project-stack">

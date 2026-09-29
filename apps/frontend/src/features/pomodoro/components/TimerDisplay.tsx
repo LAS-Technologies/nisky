@@ -11,5 +11,5 @@ export function TimerDisplay({ remainingSec, phase, pomodorosCompleted, pomodoro
     ? "Selecciona una tarea para ver tu progreso"
     : `Pomodoros: ${pomodorosCompleted} de ${pomodorosEstimated}`;
 
-  return <div className="flex flex-col items-center gap-4"><PhaseBadge phase={phase} /><div aria-live="polite" className="select-none font-data-mono text-[clamp(5rem,18vw,8rem)] font-medium leading-none tracking-[-0.05em] text-primary">{clock(remainingSec)}</div><span className="font-data-mono text-data-mono text-sm text-on-surface-variant">{progressLabel}</span></div>;
+  return <div className="focus-clock flex flex-col items-center gap-4"><PhaseBadge phase={phase} /><div aria-live="polite" className="select-none font-data-mono text-[clamp(5rem,18vw,8rem)] font-medium leading-none tracking-[-0.05em] text-primary">{clock(remainingSec)}</div><span className="font-data-mono text-data-mono text-sm text-on-surface-variant">{progressLabel}</span></div>;
 }

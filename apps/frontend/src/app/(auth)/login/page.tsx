@@ -43,7 +43,7 @@ export default function LoginPage() {
         <span className="font-headline-lg text-headline-lg font-bold tracking-tight text-primary">Nisky</span>
       </div>
 
-      <div className="rounded-lg border border-outline-variant bg-surface p-6 shadow-cadence-2 sm:p-8">
+      <div className="official-panel official-auth-card">
         <div className="mb-8">
           <p className="font-label-caps text-label-caps text-secondary">NISKY / ACCESO</p>
           <h1 className="mt-2 font-headline-lg text-headline-lg text-on-surface">Iniciar sesión</h1>
@@ -57,7 +57,7 @@ export default function LoginPage() {
           <Field label="Contraseña" error={errors.password?.message}>
             <PasswordInput autoComplete="current-password" {...register("password")} />
           </Field>
-           <Button className="w-full font-body-md text-body-md !text-white" disabled={!isHydrated || isPending} type="submit">
+           <Button className="w-full min-h-12 rounded-lg font-body-md text-body-md !text-white" disabled={!isHydrated || isPending} type="submit">
             {isPending ? "Entrando..." : "Ingresar"}
             {!isPending && <ArrowRight aria-hidden="true" size={16} />}
           </Button>

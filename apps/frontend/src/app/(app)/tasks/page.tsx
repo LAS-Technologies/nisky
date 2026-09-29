@@ -2,16 +2,12 @@
 
 import {
   Suspense,
-  useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
   Check,
   CheckSquare,
-  ChevronDown,
   Plus,
   Search,
   SlidersHorizontal,
@@ -35,6 +31,9 @@ import { archiveQuickNote } from "@/features/quicknotes/api/quicknotes";
 import { BacklogPanel } from "@/features/tasks/components/BacklogPanel";
 import { TaskList } from "@/features/tasks/components/TaskList";
 import { TaskPagination } from "@/features/tasks/components/TaskPagination";
+import { TaskCreateDialog } from "@/features/tasks/components/TaskCreateDialog";
+import type { TaskPayload } from "@/features/tasks/api/tasks";
+import "@/features/tasks/components/tasks.css";
 import { TaskDetailsPanel } from "@/features/tasks/components/TaskDetailsPanel";
 import {
   usePaginatedTasksQuery,
@@ -83,6 +82,13 @@ function useModalUrl() {
 
   return {
     state,
+    openCreate: (options: TaskCreateOptions = {}) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("taskId");
+      params.set("modal", "create");
+      params.set("prefill", JSON.stringify(options));
+      navigateWithModal(params);
+    },
     openTask: (taskId: string) => {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("modal");
@@ -186,8 +192,6 @@ function TasksPageContent() {
   const isMobile = useIsMobile(1023);
   const selection = useTaskSelection();
   const modalUrl = useModalUrl();
-  const creatingTaskRef = useRef(false);
-  const createFromUrlRef = useRef(false);
   const taskStatus: TaskStatus | TaskStatus[] | undefined =
     statusFilter === "ACTIVE"
       ? ["PENDING", "IN_PROGRESS"]
@@ -240,8 +244,6 @@ function TasksPageContent() {
     [tasks, selection.selectedIds],
   );
   const backlogCount = backlogQuery.data?.meta.totalItems ?? 0;
-  const listCount = listQuery.data?.meta.totalItems ?? 0;
-  const totalCount = backlogCount + listCount;
   const activeFilterCount =
     (statusFilter !== "ACTIVE" ? 1 : 0) +
     (priority !== "ALL" ? 1 : 0) +
@@ -261,56 +263,16 @@ function TasksPageContent() {
     selectedProjectId ??
     projectsQuery.data?.find((project) => project.isDefault)?.id;
 
-  const createTaskAndOpen = useCallback(
-    async (options: TaskCreateOptions = {}) => {
-      if (creatingTaskRef.current) return;
-      creatingTaskRef.current = true;
-      try {
-        const created = await mutations.create.mutateAsync({
-          title: options.title?.trim() || "Nueva tarea",
-          description: options.description?.trim() || undefined,
-          dueDate: options.dueDate || undefined,
-          status: "PENDING",
-          priority: options.priority ?? "NORMAL",
-          pomodoroEstimate: options.pomodoroEstimate ?? 0,
-          projectId: options.projectId ?? taskDefaultProjectId ?? undefined,
-        });
-        setCreatedTask(created);
-        if (modalUrl.state.quickNoteId) {
-          try {
-            await archiveQuickNote(modalUrl.state.quickNoteId);
-          } catch {
-            toast.warning(
-              "La tarea se creó, pero no pudimos archivar la captura original.",
-            );
-          }
-        }
-        modalUrl.openTask(created.id);
-        toast.success("¡Listo, tarea creada!");
-      } catch {
-        createFromUrlRef.current = false;
-        toast.error("Ups, no pudimos crear la tarea. Inténtalo de nuevo.");
-      } finally {
-        creatingTaskRef.current = false;
-      }
-    },
-    [modalUrl, mutations, taskDefaultProjectId],
-  );
-
-  useEffect(() => {
-    if (!modalUrl.state.create) {
-      createFromUrlRef.current = false;
-      return;
+  const createTaskAndOpen = async (payload: TaskPayload) => {
+    const created = await mutations.create.mutateAsync(payload);
+    setCreatedTask(created);
+    if (modalUrl.state.quickNoteId) {
+      try { await archiveQuickNote(modalUrl.state.quickNoteId); }
+      catch { toast.warning("La tarea se creó, pero no pudimos archivar la captura original."); }
     }
-    if (createFromUrlRef.current) return;
-    createFromUrlRef.current = true;
-    void createTaskAndOpen(parsePrefill(modalUrl.state.prefill));
-  }, [
-    createTaskAndOpen,
-    modalUrl.state.create,
-    modalUrl.state.prefill,
-    modalUrl.state.quickNoteId,
-  ]);
+    modalUrl.openTask(created.id);
+    return created;
+  };
 
   const setTaskView = (next: TaskView) => {
     setTaskPage(1);
@@ -361,11 +323,11 @@ function TasksPageContent() {
 
   const openCreate = () => {
     setCreatedTask(null);
-    void createTaskAndOpen();
+    modalUrl.openCreate();
   };
   const openCreateOnDay = (dateKey: string) => {
     setCreatedTask(null);
-    void createTaskAndOpen({ dueDate: `${dateKey}T23:59` });
+    modalUrl.openCreate({ dueDate: `${dateKey}T23:59` });
   };
   const openPreview = (task: Task) => {
     setCreatedTask(null);
@@ -441,158 +403,37 @@ function TasksPageContent() {
   ) : null;
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-background">
-      <header className="shrink-0 border-b border-outline-variant bg-background">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 p-container-padding sm:px-6 sm:py-5 lg:px-10">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <h1 className="font-headline-lg text-headline-lg tracking-tight text-on-surface">
-                Tareas
-              </h1>
-              <span className="rounded-full bg-surface-container px-2.5 py-1 font-label-md text-[11px] leading-4 text-on-surface-variant">
-                {totalCount}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                aria-label="Seleccionar tareas"
-                aria-pressed={selection.mode}
-                className={`flex h-10 items-center gap-1.5 rounded-lg border border-outline-variant px-3 font-label-md text-label-md shadow-sm ${selection.mode ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-on-surface"}`}
-                onClick={toggleSelectionMode}
-                type="button"
-              >
-                <CheckSquare size={15} /> Seleccionar
-              </button>
-              <button
-                className="hidden h-10 items-center gap-1.5 rounded-lg bg-primary px-3.5 font-label-md text-label-md text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container sm:inline-flex"
-                onClick={openCreate}
-                type="button"
-              >
-                <Plus size={16} /> Nueva tarea
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <div
-              aria-label="Sección de tareas"
-              className="flex items-end gap-1 border-b border-outline-variant"
-              role="tablist"
-            >
-              <button
-                aria-selected={view === "list"}
-                className={`flex min-h-11 items-center rounded-t-lg border-b-2 px-3 py-2 font-label-md text-[14px] leading-5 transition-colors ${view === "list" ? "border-secondary text-on-surface" : "border-transparent text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
-                onClick={() => setTaskView("list")}
-                role="tab"
-                type="button"
-              >
-                Lista
-              </button>
-              <button
-                aria-selected={view === "backlog"}
-                className={`flex min-h-11 items-center gap-1.5 rounded-t-lg border-b-2 px-3 py-2 font-label-md text-[14px] leading-5 transition-colors ${view === "backlog" ? "border-secondary text-on-surface" : "border-transparent text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
-                onClick={() => setTaskView("backlog")}
-                role="tab"
-                type="button"
-              >
-                 Sin fecha límite
-                {backlogCount > 0 && (
-                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-surface-container-highest px-1.5 py-0.5 font-label-md text-[11px] leading-4 font-semibold text-secondary">
-                    {backlogCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2 lg:hidden">
-                <div className="relative min-w-0 flex-1">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-outline"
-                    size={16}
-                  />
-                  <input
-                    aria-label="Buscar tareas"
-                    className="field h-10 w-full pl-9"
-                    onChange={(event) => setTaskSearch(event.target.value)}
-                    placeholder="Buscar tareas..."
-                    type="search"
-                    value={search}
-                  />
-                </div>
-                <button
-                  aria-expanded={filtersOpen}
-                  aria-label="Abrir filtros"
-                  className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 font-label-md text-label-md text-on-surface-variant shadow-sm hover:text-on-surface"
-                  onClick={() => setFiltersOpen(true)}
-                  type="button"
-                >
-                  <SlidersHorizontal size={16} />
-                  <span>Filtros</span>
-                  {activeFilterCount > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-secondary-container px-1 font-label-sm text-label-sm font-semibold text-on-secondary-container">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              <div className="hidden items-center gap-3 lg:flex">
-                <div className="relative min-w-0 max-w-sm flex-1">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-outline"
-                    size={16}
-                  />
-                  <input
-                    aria-label="Buscar tareas"
-                    className="field h-10 w-full pl-9"
-                    onChange={(event) => setTaskSearch(event.target.value)}
-                    placeholder="Buscar tareas..."
-                    type="search"
-                    value={search}
-                  />
-                </div>
-                <div className="relative shrink-0">
-                  <button
-                    aria-expanded={filtersOpen}
-                    aria-haspopup="dialog"
-                    className={`flex h-10 items-center gap-2 rounded-lg border px-3 font-label-md text-label-md shadow-sm transition-colors ${filtersOpen || activeFilterCount > 0 ? "border-secondary bg-secondary-container text-on-secondary-container" : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-secondary hover:text-secondary"}`}
-                    onClick={() => setFiltersOpen((open) => !open)}
-                    type="button"
-                  >
-                    <SlidersHorizontal size={16} />
-                    <span>Filtros</span>
-                    {activeFilterCount > 0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-secondary px-1 font-label-sm text-label-sm font-semibold text-on-secondary">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                    <ChevronDown className={`transition-transform ${filtersOpen ? "rotate-180" : ""}`} size={15} />
-                  </button>
-                  {filtersOpen && (
-                    <>
-                      <button aria-label="Cerrar filtros" className="fixed inset-0 z-20 hidden cursor-default lg:block" onClick={() => setFiltersOpen(false)} type="button" />
-                      <DesktopTaskFilters
-                        allProjects={allProjects}
-                        onClear={clearTaskFilters}
-                        onClose={() => setFiltersOpen(false)}
-                        onPriorityChange={setTaskPriority}
-                        onProjectChange={selectProject}
-                        onSortChange={setTaskSort}
-                        onStatusChange={setTaskStatus}
-                        priority={priority}
-                        selectedProjectId={selectedProjectId}
-                        sort={sort}
-                        statusFilter={statusFilter}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+    <section className="tasks-page">
+      {modalUrl.state.taskId && urlTaskQuery.isError && !taskFromUrl && <div className="tasks-group mb-6" role="alert">
+        <p>No pudimos abrir esta tarea. Puede que ya no esté disponible.</p>
+        <div className="mt-4 flex flex-wrap gap-3"><button className="tasks-button" onClick={() => void urlTaskQuery.refetch()}>Reintentar detalle</button><button className="tasks-button" onClick={closeModal}>Volver a la lista</button></div>
+      </div>}
+      {!previewOpen && <header className="tasks-header">
+        <div className="tasks-heading">
+          <div><p className="tasks-eyebrow">TAREAS</p><h1>{view === "backlog" ? "Sin fecha límite" : "Tus próximos pasos"}</h1><p className="tasks-muted">{view === "backlog" ? "Dale espacio a lo que quieres hacer después." : "Una tarea a la vez también es avanzar."}</p></div>
+          <button className="tasks-button" data-primary onClick={openCreate}><Plus size={18} />Nueva tarea</button>
         </div>
-      </header>
+        {!query.isError && <>
+          <div className="tasks-tabs" role="tablist" aria-label="Sección de tareas">
+            <button role="tab" aria-selected={view === "list"} onClick={() => setTaskView("list")}>Lista</button>
+            <button role="tab" aria-selected={view === "backlog"} onClick={() => setTaskView("backlog")}>Sin fecha límite</button>
+          </div>
+          <div className="tasks-toolbar">
+            <label className="tasks-search"><Search size={18}/><input aria-label="Buscar tareas" type="search" placeholder="Buscar tareas..." value={search} onChange={e => setTaskSearch(e.target.value)}/></label>
+            <div className="relative">
+              <button className="tasks-button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={18}/>Filtros{activeFilterCount > 0 && <span>{activeFilterCount}</span>}</button>
+              {filtersOpen && !isMobile && <>
+                <button aria-label="Cerrar filtros" className="fixed inset-0 z-20 cursor-default" onClick={() => setFiltersOpen(false)}/>
+                <DesktopTaskFilters allProjects={allProjects} onClear={clearTaskFilters} onClose={() => setFiltersOpen(false)} onPriorityChange={setTaskPriority} onProjectChange={selectProject} onSortChange={setTaskSort} onStatusChange={setTaskStatus} priority={priority} selectedProjectId={selectedProjectId} sort={sort} statusFilter={statusFilter}/>
+              </>}
+            </div>
+            <button className="tasks-button" aria-label="Seleccionar tareas" aria-pressed={selection.mode} onClick={toggleSelectionMode}><CheckSquare size={18}/>Seleccionar</button>
+            <select className="tasks-input tasks-project-filter" aria-label="Filtrar por proyecto" value={selectedProjectId ?? ""} onChange={e => selectProject(e.target.value || null)}>
+              <option value="">Todos los proyectos</option>{allProjects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
+            </select>
+          </div>
+        </>}
+      </header>}
       {isMobile && (
         <Drawer fixed open={filtersOpen} onOpenChange={setFiltersOpen} repositionInputs>
           <DrawerContent className="flex h-[min(85dvh,42rem)] min-h-0 max-h-[85dvh] overflow-hidden border-outline-variant bg-surface-bright">
@@ -763,18 +604,21 @@ function TasksPageContent() {
           </div>
         </div>
       )}
-      <main className="flex flex-none flex-col">
+      {!previewOpen && <main className="tasks-main">
         {query.isLoading ? (
           <div className="mx-auto flex min-h-[24rem] w-full max-w-6xl items-center justify-center p-container-padding font-body-sm text-body-sm text-on-surface-variant sm:px-6 lg:px-10">
             Cargando tus tareas...
           </div>
         ) : query.isError ? (
-          <div className="mx-auto flex min-h-[24rem] w-full max-w-6xl items-center justify-center p-container-padding font-body-sm text-body-sm text-error sm:px-6 lg:px-10">
-            Ups, no pudimos cargar tus tareas. Inténtalo de nuevo.
+          <div className="tasks-error" role="alert">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/design-official/otter-at-desk.png" alt="" width={520} height={230}/>
+            <h2>No pudimos cargar tus tareas</h2><p className="tasks-muted">Puedes volver a intentarlo. Tu trabajo sigue guardado.</p>
+            <button className="tasks-button" data-primary disabled={query.isFetching} onClick={() => void query.refetch()}>{query.isFetching ? "Reintentando…" : "Reintentar"}</button>
           </div>
         ) : (
           <div className="flex flex-col">
-            <div className="mx-auto flex w-full max-w-6xl flex-col p-container-padding pb-24 sm:px-6 sm:py-8 lg:px-10">
+            <div className="tasks-results">
                 {view === "backlog" ? (
                   <BacklogPanel
                     count={backlogCount}
@@ -796,13 +640,13 @@ function TasksPageContent() {
                   />
                 )}
             </div>
-            <div className="mx-auto w-full max-w-6xl px-container-padding sm:px-6 lg:px-10">
+            <div className="mt-6">
               {taskPagination}
             </div>
           </div>
         )}
-      </main>
-      <div className="sm:hidden">
+      </main>}
+      <div className={previewOpen ? "hidden" : "sm:hidden"}>
         <FAB
           ariaLabel="Nueva tarea"
           loading={mutations.create.isPending}
@@ -820,8 +664,15 @@ function TasksPageContent() {
           title="¿Eliminar tareas seleccionadas?"
         />
       )}
+      {modalUrl.state.create && <TaskCreateDialog
+        projects={allProjects}
+        initial={{ ...parsePrefill(modalUrl.state.prefill), projectId: parsePrefill(modalUrl.state.prefill)?.projectId ?? taskDefaultProjectId }}
+        onClose={closeModal}
+        onCreate={createTaskAndOpen}
+      />}
       {previewOpen && taskFromUrl && (
         <TaskDetailsPanel
+          presentation="page"
           key={taskFromUrl.id}
           onAddSubtask={async (taskId, title) => {
             await mutations.addSubtask.mutateAsync({ taskId, title });

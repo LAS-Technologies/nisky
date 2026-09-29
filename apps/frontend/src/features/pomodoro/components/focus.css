@@ -1,0 +1,12 @@
+.official-focus-grid { display: grid; grid-template-columns: minmax(0,1.87fr) minmax(280px,1fr); gap: 24px; align-items: start; }
+.official-focus-timer { grid-column: 1; min-height: 488px; display: flex; align-items: center; flex-direction: column; gap: 20px; }
+.official-focus-context { grid-column: 2; grid-row: 1 / span 2; }
+.official-focus-context label { margin-top: 16px; }
+.official-focus-history { grid-column: 1; }
+.official-focus .focus-clock { width: 272px; height: 272px; border: 8px solid var(--color-primary-fixed); border-radius: 50%; justify-content: center; gap: 12px; }
+.official-focus .focus-clock > :first-child { display: none; }
+.official-focus .focus-clock > div[aria-live] { font: 700 64px/80px var(--font-plus-jakarta),sans-serif; letter-spacing: -2px; }
+.official-focus .focus-clock > span { max-width: 200px; font-size: 11px; text-align: center; }
+.official-focus-timer > button, .official-focus-timer > div:not(.focus-clock) button { border-radius: 8px; min-height: 48px; font-size: 13px; padding: 12px 16px; }
+.official-focus-history > section { border: 0; padding: 0; box-shadow: none; }
+@media(max-width:767px) { .official-focus-grid { display: flex; flex-direction: column; }.official-focus-grid > * { width:100%; }.official-focus .focus-clock { width: 240px; height: 240px; }.official-focus-timer { min-height: 460px; } }

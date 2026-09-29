@@ -1,4 +1,5 @@
 "use client";
+import "@/components/ui/official.css";
 
 import { ArrowRight, CalendarClock, Inbox, PencilLine } from "lucide-react";
 import type { QuickNote } from "@/types/entities";
@@ -18,7 +19,7 @@ export function QuickNotePreviewModal({
   const detected = detectDate(note.content);
 
   return (
-    <PreviewSheet
+    <PreviewSheet centered
       eyebrow="Captura rápida"
       footer={onConvertToTask ? <button className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3.5 font-label-md text-label-md font-semibold text-on-primary hover:bg-primary-container hover:text-on-primary-container" onClick={() => onConvertToTask(note, detected)} type="button"><ArrowRight size={15} /> Crear tarea</button> : undefined}
       onClose={onClose}

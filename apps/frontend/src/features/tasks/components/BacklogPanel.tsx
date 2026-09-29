@@ -19,11 +19,11 @@ export function BacklogPanel({
   onStartPomodoro: (task: Task) => void;
 }) {
   return (
-    <section className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-2 border-b border-outline-variant pb-3">
+    <section className="tasks-group tasks-backlog">
+      <header className="tasks-group-heading">
         <div>
           <h2 className="font-headline-xs text-headline-xs font-semibold text-on-surface">
-            Sin fecha límite
+            Por planificar
           </h2>
           <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
             Tareas que todavía no tienen fecha límite.
@@ -56,6 +56,7 @@ export function BacklogPanel({
           ))}
         </div>
       )}
+      <p className="tasks-backlog-footer tasks-muted">Estas tareas seguirán aquí hasta que decidas una fecha límite.</p>
     </section>
   );
 }

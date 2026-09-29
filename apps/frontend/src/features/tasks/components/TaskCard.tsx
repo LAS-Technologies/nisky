@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, CheckSquare2, Circle, MessageSquare, Play, Square, Timer } from "lucide-react";
+import { CalendarDays, CheckSquare2, MessageSquare, Play, Square, Timer } from "lucide-react";
 import type { Task } from "@/types/entities";
 import { cn, isTaskOverdue } from "@/lib/utils";
 import { PriorityChip } from "./PriorityChip";
@@ -35,7 +35,7 @@ export function TaskCardShell({
       aria-selected={isSelecting ? selected : undefined}
       role="option"
       className={cn(
-        "group relative flex min-h-[104px] cursor-pointer flex-col gap-3 rounded-xl border bg-surface-container-lowest p-4 shadow-sm transition-all",
+        "task-row group relative cursor-pointer rounded-xl border bg-surface-container-lowest p-4 transition-all",
         !overdue && "hover:border-outline",
         !overdue && "hover:-translate-y-px hover:shadow-md",
         isSelecting && "cursor-pointer",
@@ -51,7 +51,7 @@ export function TaskCardShell({
         else onOpen();
       }}
       onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
+        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault();
           if (isSelecting) selection.toggleSelect(task.id);
           else onOpen();
@@ -63,7 +63,7 @@ export function TaskCardShell({
         <div className="flex min-w-0 flex-1 items-start gap-2">
           <button
             aria-label={isSelecting ? (selected ? "Quitar selección" : "Seleccionar tarea") : completed ? "Marcar pendiente" : "Marcar completada"}
-            className="mt-0.5 shrink-0 rounded-full p-1 text-outline hover:bg-surface-container-low hover:text-primary"
+            className="task-row-check shrink-0 text-primary"
             onClick={(event) => {
               event.stopPropagation();
               if (isSelecting) selection.toggleSelect(task.id);
@@ -71,7 +71,7 @@ export function TaskCardShell({
             }}
             type="button"
           >
-            {isSelecting ? (selected ? <CheckSquare2 size={17} className="text-primary" /> : <Square size={17} />) : completed ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+            {isSelecting ? (selected ? <CheckSquare2 size={17} className="text-primary" /> : <Square size={17} />) : completed ? <CheckSquare2 size={22} /> : <Square size={22} />}
           </button>
           <button
              className="min-w-0 flex-1 rounded-md text-left"
@@ -93,7 +93,7 @@ export function TaskCardShell({
           {isPreviewed && <span className="hidden rounded-md bg-primary-fixed px-2 py-1 font-label-caps text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline-flex">Abierta en panel</span>}
         </div>
       </div>
-      <div className="ml-7 mt-auto flex flex-wrap items-center justify-between gap-2">
+      <div className="task-row-meta flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
            {task.project && (
              <span className="inline-flex min-w-0 max-w-[10rem] items-center gap-1.5 font-label-md text-[11px] leading-4 text-on-surface-variant" title={task.project.name}>
@@ -104,6 +104,7 @@ export function TaskCardShell({
            {(task.priority === "URGENT" || task.priority === "HIGH") && (
              <PriorityChip priority={task.priority} />
            )}
+           {!task.dueDate && !isSelecting && <button className="task-assign-date" onClick={event => { event.stopPropagation(); onOpen(); }} type="button">Asignar fecha</button>}
            {task.dueDate && (
              <time
                className={cn(

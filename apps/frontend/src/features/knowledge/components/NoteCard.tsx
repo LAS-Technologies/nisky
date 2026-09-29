@@ -18,9 +18,11 @@ export function NoteCard({
   showAuthor = false,
   project,
   projectStyle = false,
+  officialStyle = false,
 }: {
   note: Note;
   projectStyle?: boolean;
+  officialStyle?: boolean;
   onOpen: (note: Note) => void;
   onEdit?: (note: Note) => void;
   onTogglePin: (note: Note) => Promise<void>;
@@ -29,11 +31,11 @@ export function NoteCard({
   showAuthor?: boolean;
   project?: { id: string; name: string; color: string } | null;
 }) {
-  if (projectStyle) return <article className="project-panel project-card project-list-card">
-    <div className="flex w-full items-center justify-between gap-2"><span className="project-tag">{note.pinned ? "Fijada" : note.category || "Nota"}</span>{canEdit && <button aria-label={note.pinned ? "Desfijar" : "Fijar"} className="p-2 text-primary" onClick={() => void onTogglePin(note)}><Pin size={16} /></button>}</div>
+  if (projectStyle || officialStyle) return <article className={officialStyle ? "official-panel official-note-card" : "project-panel project-card project-list-card"}>
+    <div className="flex w-full items-center justify-between gap-2"><span className={officialStyle ? "official-note-tag" : "project-tag"}>{note.pinned ? "Fijada" : note.category || "Nota"}</span>{canEdit && <button aria-label={note.pinned ? "Desfijar" : "Fijar"} className="p-2 text-primary" onClick={() => void onTogglePin(note)}><Pin size={16} /></button>}</div>
     <button aria-label={`Vista previa de ${note.title}`} className="text-left min-w-0" onClick={() => onOpen(note)}><h2>{note.title}</h2></button>
-    <button className="text-left min-w-0 w-full" onClick={() => onOpen(note)}><p className="project-muted line-clamp-2">{note.content}</p></button>
-    <div className="flex items-center justify-between w-full gap-2"><p className="project-small">Editado {noteDate(note.updatedAt)}</p>{canEditContent && onEdit && <button aria-label={`Editar ${note.title}`} className="p-2 text-primary" onClick={() => onEdit(note)}><Pencil size={16} /></button>}</div>
+    <button className="text-left min-w-0 w-full" onClick={() => onOpen(note)}><p className={officialStyle ? "official-description line-clamp-2" : "project-muted line-clamp-2"}>{note.content}</p></button>
+    <div className="flex items-center justify-between w-full gap-2"><p className={officialStyle ? "text-xs text-on-surface-variant" : "project-small"}>Editado {noteDate(note.updatedAt)}</p>{canEditContent && onEdit && <button aria-label={`Editar ${note.title}`} className="p-2 text-primary" onClick={() => onEdit(note)}><Pencil size={16} /></button>}</div>
   </article>;
   return (
     <article className="group flex min-w-0 flex-col rounded-lg border border-outline-variant/70 bg-surface-container-lowest shadow-sm transition-shadow hover:shadow-md">

@@ -1,5 +1,7 @@
 "use client";
 
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -29,6 +31,7 @@ export default function KnowledgePage() {
     category: filter?.type === "category" ? filter.name : undefined,
     tag: filter?.type === "tag" ? filter.name : undefined,
     ownerOnly: true,
+    pinned: filter?.type === "pinned" ? true : undefined,
     projectId: projectFilter?.id ?? undefined,
     withoutProject: projectFilter?.id === null ? true : undefined,
     limit: 20,
@@ -79,23 +82,11 @@ export default function KnowledgePage() {
   const closePreview = () => setPreviewing(null);
 
   return (
-    <section className="h-full min-h-0 overflow-y-auto bg-background">
-      <div className="flex flex-col gap-4 bg-transparent p-container-padding sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:pb-0 sm:pt-8 lg:px-10">
-        <div>
-          <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">MIS NOTAS</p>
-          <h1 className="mt-1 font-display-hero-mobile text-display-hero-mobile text-on-surface sm:font-display-hero sm:text-display-hero">Notas y referencias</h1>
-        </div>
-        <div className="flex w-full items-center gap-3 sm:w-auto">
-          <input
-            className="field h-10 w-full rounded-full border-0 bg-surface-container-lowest px-4 shadow-sm sm:w-56"
-            onChange={(event) => updateSearch(event.target.value)}
-            placeholder="Buscar notas..."
-            value={search}
-          />
-          <button className="hidden shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 font-body-sm text-body-sm text-on-primary shadow-sm hover:bg-primary-container sm:inline-flex" onClick={openNew} type="button">
-            <Plus size={16} /> Nueva nota
-          </button>
-        </div>
+    <OfficialPage>
+      <OfficialHeader eyebrow="MIS NOTAS" title="Notas y referencias" description="Conecta ideas. Conserva lo que te inspira." actions={<button className="official-button" data-primary onClick={openNew}><Plus size={16}/>Nueva nota</button>}/>
+      <div className="official-toolbar">
+        <input className="field min-w-0 flex-1" aria-label="Buscar notas" onChange={event => updateSearch(event.target.value)} placeholder="Buscar notas…" value={search}/>
+        <Link className="official-button" href="/quick-notes">Capturas rápidas</Link>
       </div>
       <div>
         {query.isLoading ? (
@@ -103,7 +94,7 @@ export default function KnowledgePage() {
         ) : query.isError ? (
           <div className="flex h-full items-center justify-center font-body-sm text-body-sm text-error">Ups, no pudimos cargar tus notas. Inténtalo de nuevo.</div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 p-container-padding sm:gap-6 sm:px-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-10">
+          <div className="official-notes-grid">
              <KnowledgeSidebar active={filter} facets={facetsQuery.data} onFilter={updateFilter} projects={projectsQuery.data} />
              <div className="min-w-0">
              {notes.length === 0 ? (
@@ -116,9 +107,9 @@ export default function KnowledgePage() {
                </div>
              ) : (
                <>
-                 <div className="grid grid-cols-1 content-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                 <div className="official-note-cards">
                    {notes.map((note) => (
-                        <NoteCard key={note.id} note={note} onEdit={openEdit} onOpen={openPreview} onTogglePin={async (item) => { await togglePin(item); }} project={note.project} />
+                        <NoteCard officialStyle key={note.id} note={note} onEdit={openEdit} onOpen={openPreview} onTogglePin={async (item) => { await togglePin(item); }} project={note.project} />
                    ))}
                  </div>
                  <NotePagination isFetching={query.isFetching} meta={query.data?.meta} onPageChange={setPage} />
@@ -141,6 +132,6 @@ export default function KnowledgePage() {
              onTogglePin={(pinned) => togglePin(previewing, pinned)}
            />
          )}
-     </section>
+     </OfficialPage>
   );
 }

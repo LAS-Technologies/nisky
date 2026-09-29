@@ -6,11 +6,8 @@ import { dateKey } from "@/lib/tasks";
 import { cn } from "@/lib/utils";
 import { TaskCardShell } from "./TaskCard";
 
-const dayNames = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
-
 function dayLabel(day: Date) {
-  const index = day.getDay() === 0 ? 6 : day.getDay() - 1;
-  return `${dayNames[index]} ${day.getDate()} ${day.toLocaleDateString("es-CO", { month: "short" })}`;
+  return day.toLocaleDateString("es", { day: "numeric", month: "long" });
 }
 
 export function TaskList({
@@ -31,6 +28,9 @@ export function TaskList({
   onCreateOnDay: (dateKey: string) => void;
 }) {
   const today = dateKey(new Date());
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrow = dateKey(tomorrowDate);
   const visibleTasks = tasks;
 
   const datedTasks = visibleTasks.filter((task) => task.dueDate);
@@ -72,8 +72,8 @@ export function TaskList({
   return (
     <div className="flex flex-col gap-5">
       {overdueTasks.length > 0 && (
-        <section className="pt-4">
-          <header className="flex items-center justify-between px-1 py-1">
+        <section className="tasks-group">
+          <header className="tasks-group-heading">
             <div className="flex items-center gap-2">
               <span className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-error">
                 Atrasadas
@@ -105,11 +105,11 @@ export function TaskList({
         const day = new Date(`${key}T00:00:00`);
         const isToday = key === today;
         return (
-          <section className="pt-1" data-day-key={key} key={key}>
-            <header className="flex items-center justify-between px-1 py-1">
+          <section className="tasks-group" data-day-key={key} key={key}>
+            <header className="tasks-group-heading">
               <div className="flex items-center gap-2">
                 <span className={cn("font-label-sm text-label-sm font-semibold uppercase tracking-wider", isToday ? "text-secondary" : "text-on-surface-variant")}>
-                  {isToday ? "Hoy" : dayLabel(day)}
+                  {isToday ? `Hoy · ${dayLabel(day)}` : `${key === tomorrow ? "Mañana" : day.toLocaleDateString("es", { weekday: "long" })} · ${dayLabel(day)}`}
                 </span>
                 <span className={cn("rounded-full px-2 py-0.5 font-label-sm text-label-sm", isToday ? "bg-surface-container-high text-secondary" : "bg-surface-container text-on-surface-variant")}>
                   {dayTasks.length}

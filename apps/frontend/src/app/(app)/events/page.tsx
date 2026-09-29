@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock, MapPin, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-import { useEventMutations, useEventsQuery } from "@/features/events/hooks/useEvents";
+import Link from "next/link";
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
+import { AgendaCreateDialog } from "@/features/timeblocks/components/AgendaCreateDialog";
+import "@/features/timeblocks/components/agenda.css";
+import { useEventsQuery } from "@/features/events/hooks/useEvents";
 import { EventPreviewModal } from "@/features/events/components/EventPreviewModal";
 import { useTimeBlocksQuery } from "@/features/timeblocks/hooks/useTimeBlocks";
 import type { CalendarEvent, TimeBlock } from "@/types/entities";
-import { PROJECT_COLORS } from "@/components/ui/ColorPicker";
 import { findAvailableStartMin } from "@/features/timeblocks/lib/availability";
-import { hexToRgba, parseDateOnly } from "@/features/timeblocks/lib/time";
+import { parseDateOnly } from "@/features/timeblocks/lib/time";
 
 function toLocalISODate(date: Date) {
   const y = date.getFullYear();
@@ -63,13 +65,13 @@ export default function EventsPage() {
   toDate.setMonth(toDate.getMonth() + 1);
   toDate.setDate(0);
   const to = toLocalISODate(toDate);
-  const { data: events = [], isLoading } = useEventsQuery(from, to);
+  const eventsQuery = useEventsQuery(from, to);
+  const { data: events = [], isLoading } = eventsQuery;
   const { data: blocks = [] } = useTimeBlocksQuery();
-  const { createEvent } = useEventMutations();
+  const [creating, setCreating] = useState(false);
   const [previewingEvent, setPreviewingEvent] = useState<CalendarEvent | null>(null);
   const eventIdParam = searchParams.get("eventId");
   const handledEventIdRef = useRef<string | null>(null);
-  const creatingEventRef = useRef(false);
 
   useEffect(() => {
     if (!eventIdParam || handledEventIdRef.current === eventIdParam || previewingEvent || isLoading) return;
@@ -94,33 +96,7 @@ export default function EventsPage() {
     return next;
   });
 
-  const openCreate = async () => {
-    if (creatingEventRef.current) return;
-    creatingEventRef.current = true;
-    const schedule = defaultEventSchedule(events, blocks);
-    try {
-      const created = await createEvent.mutateAsync({
-        title: "Nuevo evento",
-        date: schedule.date,
-        allDay: schedule.allDay,
-        startMin: schedule.allDay ? undefined : schedule.startMin ?? undefined,
-        endMin: schedule.endMin,
-        color: PROJECT_COLORS[0] ?? "#0f172a",
-        recurrenceType: null,
-        recurrenceInterval: 1,
-        recurrenceDaysOfWeek: [],
-        recurrenceDayOfMonth: null,
-        recurrenceEndsAt: null,
-        remindBeforeMin: 0,
-      });
-      setPreviewingEvent(created);
-      toast.success("Evento creado");
-    } catch (error) {
-      toast.error((error as { message?: string } | null)?.message ?? "Ups, no pudimos crear el evento. Inténtalo de nuevo.");
-    } finally {
-      creatingEventRef.current = false;
-    }
-  };
+  const openCreate = () => setCreating(true);
 
   const openPreview = (event: CalendarEvent) => {
     setPreviewingEvent(event);
@@ -132,81 +108,30 @@ export default function EventsPage() {
     acc[day].push(event);
     return acc;
   }, {});
-  const sortedDays = Object.keys(groupedEvents).sort();
+  const gridStart = new Date(currentMonth);
+  gridStart.setDate(1 - ((gridStart.getDay() + 6) % 7));
+  const gridDays = Array.from({ length: Math.ceil((((currentMonth.getDay() + 6) % 7) + toDate.getDate()) / 7) * 7 }, (_, index) => {
+    const day = new Date(gridStart); day.setDate(day.getDate() + index); return day;
+  });
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface p-container-padding">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <button onClick={prevMonth} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-outline-variant bg-surface text-on-surface-variant transition-colors hover:border-outline hover:bg-surface-container-low hover:text-on-surface sm:h-10 sm:w-10" type="button" aria-label="Mes anterior">&lt;</button>
-          <h2 className="truncate font-headline-sm text-base text-on-surface sm:text-headline-sm">
-            {currentMonth.toLocaleDateString("es", { month: "long", year: "numeric" }).replace(/^\p{L}/u, (char) => char.toUpperCase())}
-          </h2>
-          <button onClick={nextMonth} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-outline-variant bg-surface text-on-surface-variant transition-colors hover:border-outline hover:bg-surface-container-low hover:text-on-surface sm:h-10 sm:w-10" type="button" aria-label="Mes siguiente">&gt;</button>
-        </div>
-        <button
-          disabled={createEvent.isPending}
-          onClick={() => void openCreate()}
-          className="flex min-h-11 items-center gap-2 rounded-md bg-primary px-3 py-2 font-body-sm text-body-sm text-on-primary shadow-cadence-1 transition-colors hover:bg-primary/90 disabled:opacity-50 sm:px-4"
-          type="button"
-        >
-          <Plus size={18} className="shrink-0 sm:size-5" />
-          <span className="hidden sm:inline">Nuevo evento</span>
-          <span className="sm:hidden">Nuevo</span>
-        </button>
+    <OfficialPage>
+      <OfficialHeader eyebrow="AGENDA" title="Eventos" description="Tus compromisos, en perspectiva." actions={<button className="official-button" data-primary onClick={openCreate}><Plus size={18}/>Nuevo evento</button>}/>
+      <div className="official-toolbar">
+        <div className="flex items-center rounded-lg border border-outline-variant bg-white"><button className="official-button border-0" aria-label="Mes anterior" onClick={prevMonth}>‹</button><h2 className="px-4 text-sm capitalize">{currentMonth.toLocaleDateString("es", { month: "long", year: "numeric" })}</h2><button className="official-button border-0" aria-label="Mes siguiente" onClick={nextMonth}>›</button></div>
+        <button className="official-button" onClick={() => setCurrentMonth(initialMonth(null))}>Hoy</button><Link className="official-button" href="/timeblocks">Ver agenda semanal</Link>
       </div>
-
-      <div className="flex-1 overflow-y-auto p-container-padding sm:p-section-gap">
-        {isLoading ? (
-          <p className="text-on-surface-variant">Cargando...</p>
-        ) : sortedDays.length === 0 ? (
-          <p className="py-8 text-center text-on-surface-variant">No hay eventos este mes.</p>
-        ) : (
-          <div className="space-y-8">
-            {sortedDays.map((day) => (
-              <div key={day}>
-                <h3 className="mb-4 border-b border-outline-variant pb-3 font-headline-xs text-headline-xs text-on-surface">
-                  {new Date(`${day}T00:00:00`).toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })}
-                </h3>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {groupedEvents[day].map((event) => {
-                    const eventColor = event.color ?? "#303e51";
-                    return (
-                      <button
-                        key={`${event.id}-${event.date}`}
-                        onClick={() => {
-                           openPreview(event);
-                        }}
-                        className="flex min-h-20 flex-col rounded-lg border border-outline-variant bg-surface p-4 text-left shadow-cadence-1 transition-colors hover:border-outline hover:shadow-cadence-2"
-                        style={{ borderLeft: `3px solid ${eventColor}`, backgroundColor: hexToRgba(eventColor, 0.06) }}
-                        type="button"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: eventColor }} />
-                          <div className="font-headline-xs text-headline-xs font-semibold text-on-surface">{event.title}</div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-4 font-body-sm text-body-sm text-on-surface-variant">
-                          <div className="flex items-center gap-1">
-                            <Clock size={14} />
-                            {event.allDay ? "Todo el día" : `${formatMin(event.startMin!)} - ${formatMin(event.endMin!)}`}
-                          </div>
-                          {event.location && (
-                            <div className="flex items-center gap-1 truncate">
-                              <MapPin size={14} />
-                              <span className="truncate">{event.location}</span>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
+      {eventsQuery.isError ? <div role="alert" className="official-panel"><p>No pudimos cargar los eventos.</p><button className="official-button mt-4" onClick={() => void eventsQuery.refetch()}>Reintentar</button></div> : isLoading ? <p>Cargando eventos…</p> : <div className="official-month" aria-label="Calendario mensual">
+        <div className="official-month-weekdays">{["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"].map(day => <span key={day}>{day}</span>)}</div>
+        <div className="official-month-days">{gridDays.map(day => {
+          const key = toLocalISODate(day), today = key === toLocalISODate(new Date());
+          return <div className="official-month-day" key={key} data-today={today} data-outside={day.getMonth() !== currentMonth.getMonth()}>
+            <time dateTime={key}>{day.getDate()}</time>
+            {groupedEvents[key]?.map(event => <button key={event.id + event.date} onClick={() => openPreview(event)} className="official-month-event"><span>{event.title}</span><small>{event.allDay ? "Todo el día" : formatMin(event.startMin ?? 0)}</small></button>)}
+          </div>;
+        })}</div>
+      </div>}
+      {creating && <AgendaCreateDialog kind="event" slot={(() => { const schedule = defaultEventSchedule(events, blocks); return { date: schedule.date, startMin: schedule.startMin ?? 540, endMin: schedule.endMin ?? 600 }; })()} onClose={() => setCreating(false)} onCreated={result => { setCreating(false); if (result.kind === "event") { setCurrentMonth(initialMonth(result.event.date.slice(0,7))); setPreviewingEvent(result.event); } }}/>}
       {previewingEvent && (
         <EventPreviewModal
           event={previewingEvent}
@@ -214,6 +139,6 @@ export default function EventsPage() {
           onClose={() => setPreviewingEvent(null)}
         />
       )}
-    </div>
+    </OfficialPage>
   );
 }

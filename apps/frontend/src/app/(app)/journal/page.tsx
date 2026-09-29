@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { NotebookPen } from "lucide-react";
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
 import { JournalEditor } from "@/features/journal/components/JournalEditor";
 import { JournalLocked } from "@/features/journal/components/JournalLocked";
 import { JournalPreviewModal } from "@/features/journal/components/JournalPreviewModal";
@@ -85,8 +85,9 @@ export default function JournalPage() {
   const editing = previewing ? null : selected;
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background">
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-section-gap p-container-padding sm:p-section-gap lg:grid-cols-[20rem_1fr]">
+    <OfficialPage>
+      <OfficialHeader eyebrow="DIARIO" title="Una pausa para pensar" description="Tu espacio personal para escribir con calma." actions={<button className="official-button" data-primary onClick={openNew}>Nueva entrada</button>}/>
+      <div className="official-journal-grid">
         {editing || creating ? (
           <>
             <div className="hidden lg:block">
@@ -118,21 +119,22 @@ export default function JournalPage() {
               onSelect={openEntry}
               selectedId={selectedId}
             />
-            <article className="flex min-h-[20rem] flex-col items-center justify-center gap-2 rounded-lg border border-outline-variant bg-surface p-section-gap text-center shadow-cadence-1">
-              <NotebookPen className="text-primary" size={28} />
-              <p className="font-label-caps text-label-caps text-on-surface-variant">MI DIARIO</p>
-              <h1 className="font-headline-md text-headline-md text-on-surface">Una pausa para pensar</h1>
+            <article className="official-panel official-empty">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/design-official/otter-at-desk.png" alt="" width={500} height={230}/>
+
+              <h2>Una pausa para pensar</h2>
               <p className="max-w-xl font-body-sm text-body-sm text-on-surface-variant">
                 Escribe tranquilo: tus entradas solo se abren para ti, y solo mientras estás conectado.
               </p>
               <button className="mt-2 min-h-11 rounded-md bg-primary px-4 py-2 font-body-sm text-body-sm text-on-primary shadow-cadence-1 transition-colors hover:bg-primary/90" onClick={openNew} type="button">
-                Nueva entrada
+                Escribir una entrada
               </button>
             </article>
           </>
         )}
       </div>
       {previewing && <JournalPreviewModal entry={previewing} onClose={closePreview} onEdit={() => openEdit(previewing)} />}
-    </section>
+    </OfficialPage>
   );
 }

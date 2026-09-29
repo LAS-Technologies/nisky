@@ -1,4 +1,5 @@
 "use client";
+import "@/components/ui/official.css";
 
 import { CalendarDays, Pencil } from "lucide-react";
 import type { JournalEntry } from "@/types/entities";
@@ -19,7 +20,7 @@ export function JournalPreviewModal({
   onEdit: () => void;
 }) {
   return (
-    <PreviewSheet
+    <PreviewSheet centered
       eyebrow="Mi diario"
       footer={<button className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3.5 font-label-md text-label-md font-semibold text-on-primary hover:bg-primary-container hover:text-on-primary-container" onClick={onEdit} type="button"><Pencil size={15} /> Editar entrada</button>}
       onClose={onClose}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CalendarDays, Plus } from "lucide-react";
 import type { JournalEntry } from "@/types/entities";
 
@@ -24,9 +25,11 @@ export function JournalSidebar({
   onSelect: (id: string) => void;
   onNew: () => void;
 }) {
+  const [search, setSearch] = useState("");
+  const visibleEntries = entries.filter(entry => entry.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface shadow-cadence-1 lg:h-full">
-      <div className="flex shrink-0 items-center justify-between border-b border-outline-variant bg-surface-container-low p-container-padding">
+    <aside className="official-panel flex min-h-0 flex-col overflow-hidden lg:h-full">
+      <div className="flex shrink-0 items-center justify-between gap-2 pb-4">
         <span className="font-label-caps text-label-caps text-on-surface-variant">
           MIS ENTRADAS
         </span>
@@ -39,6 +42,7 @@ export function JournalSidebar({
           <Plus size={18} />
         </button>
       </div>
+      <input aria-label="Buscar en mi diario" className="field mb-4" placeholder="Buscar en mi diario…" value={search} onChange={e => setSearch(e.target.value)}/>
       <div className="max-h-52 min-h-0 flex-1 overflow-y-auto lg:max-h-none">
         {entries.length === 0 ? (
           <p className="p-container-padding font-body-sm text-body-sm text-on-surface-variant">
@@ -46,7 +50,7 @@ export function JournalSidebar({
           </p>
         ) : (
           <ul>
-            {entries.map((entry) => {
+            {visibleEntries.map((entry) => {
               const active = creating ? false : entry.id === selectedId;
               return (
                 <li key={entry.id}>

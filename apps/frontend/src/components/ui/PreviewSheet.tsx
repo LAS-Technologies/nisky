@@ -41,6 +41,7 @@ type PreviewSheetProps = {
   wide?: boolean;
   extraWide?: boolean;
   tall?: boolean;
+  centered?: boolean;
 };
 
 function useIsMobilePreview() {
@@ -226,9 +227,10 @@ function DesktopPreviewSheet({
   titlePlacement,
   wide = false,
   extraWide = false,
+  centered = false,
 }: PreviewSheetProps) {
   return (
-    <Dialog modal={false} open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog modal={centered} open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
         className={cn(
           "fixed inset-x-0 bottom-0 left-0 right-0 top-auto z-50 flex h-[min(88dvh,48rem)] max-h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none rounded-t-[1.75rem] border-outline-variant bg-surface-bright p-0 shadow-cadence-3 outline-none transition-transform duration-200 sm:max-w-none lg:inset-y-0 lg:bottom-0 lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-full lg:rounded-l-2xl lg:rounded-r-none lg:rounded-t-none lg:shadow-[-8px_0_24px_-4px_rgba(15,23,42,0.06)]",
@@ -238,13 +240,14 @@ function DesktopPreviewSheet({
                : "lg:w-[min(42rem,100vw)]"
              : "lg:w-[min(29rem,100vw)]",
         )}
+        data-centered={centered || undefined}
         data-preview-sheet="true"
         onInteractOutside={(event) => {
           const target = event.target;
           if (target instanceof Element && target.closest('[data-preview-floating="true"]')) return;
-          event.preventDefault();
+          if (!centered) event.preventDefault();
         }}
-        overlayClassName="preview-sheet-overlay lg:!pointer-events-none lg:bg-transparent lg:backdrop-blur-none"
+        overlayClassName={centered ? "bg-[#0f1f33]/24 supports-backdrop-filter:backdrop-blur-none" : "preview-sheet-overlay lg:!pointer-events-none lg:bg-transparent lg:backdrop-blur-none"}
         showCloseButton={false}
       >
         <PreviewHeader

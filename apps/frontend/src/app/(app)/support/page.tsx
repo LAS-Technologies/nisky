@@ -1,5 +1,6 @@
 "use client";
 
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { FeedbackForm } from "@/components/feedback/FeedbackForm";
@@ -52,21 +53,9 @@ export default function SupportPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="h-full space-y-8 overflow-y-auto bg-background p-container-padding sm:p-section-gap">
-      <div className="rounded-lg border border-outline-variant bg-surface p-container-padding shadow-cadence-1 sm:p-section-gap">
-        <p className="font-label-caps text-label-caps text-on-surface-variant">
-          AYUDA
-        </p>
-        <h1 className="mt-2 font-headline-lg text-headline-lg text-on-surface">
-          Centro de ayuda
-        </h1>
-        <p className="mt-3 font-body-sm text-body-sm text-on-surface-variant">
-          ¿Tienes dudas o algo no funciona? Aquí puedes encontrar respuestas o
-          contarnos qué pasó.
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-outline-variant bg-surface p-container-padding shadow-cadence-1 sm:p-section-gap">
+    <OfficialPage className="space-y-6">
+      <OfficialHeader eyebrow="AYUDA" title="Estamos para ayudarte" description="Encuentra una respuesta o cuéntanos qué necesitas."/>
+      <div className="official-panel">
         <h2 className="font-headline-md text-headline-md text-on-surface">
           Preguntas frecuentes
         </h2>
@@ -100,6 +89,6 @@ export default function SupportPage() {
 
       <FeedbackForm />
       <MyFeedbackList />
-    </section>
+    </OfficialPage>
   );
 }

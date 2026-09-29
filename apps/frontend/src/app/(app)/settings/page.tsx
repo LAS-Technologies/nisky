@@ -1,5 +1,6 @@
 "use client";
 
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthProvider";
 import { PasswordSection } from "@/components/admin/PasswordSection";
@@ -29,14 +30,15 @@ export default function SettingsPage() {
   const [active, setActive] = useState<Tab>(visibleTabs[0]?.id ?? "profile");
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background p-container-padding sm:p-section-gap">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface shadow-cadence-1">
-        <div className="shrink-0 border-b border-outline-variant bg-surface-container-low px-4 pt-4 sm:px-6 sm:pt-5">
-          <h2 className="px-0 pb-2 font-headline-md text-headline-md text-on-surface">Ajustes</h2>
-          <div className="mt-2 flex gap-1 overflow-x-auto">
+    <OfficialPage>
+      <OfficialHeader eyebrow="AJUSTES" title="A tu manera" description="Cuida tu cuenta y adapta Nisky a tu ritmo."/>
+      <div className="official-settings-grid">
+        <div className="official-panel">
+          <h2>Tu cuenta</h2>
+          <div className="official-settings-nav" role="tablist" aria-label="Secciones de ajustes">
             {visibleTabs.map((tab) => (
               <button
-                className={`min-h-11 rounded-t-md border-b-2 px-3 py-2 font-label-md text-label-md transition-colors ${active === tab.id ? "border-secondary text-secondary" : "border-transparent text-on-surface-variant hover:bg-surface hover:text-on-surface"}`}
+                className="official-button" role="tab" aria-selected={active === tab.id}
                 key={tab.id}
                 onClick={() => setActive(tab.id)}
                 type="button"
@@ -47,7 +49,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-container-padding sm:p-section-gap">
+        <div className="official-panel official-settings-content" role="tabpanel" aria-label={tabs.find(tab => tab.id === active)?.label}>
           {active === "profile" && (
             <div className="space-y-6">
               <ProfileSection />
@@ -93,6 +95,6 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
-    </section>
+    </OfficialPage>
   );
 }

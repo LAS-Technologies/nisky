@@ -1,7 +1,8 @@
 "use client";
 
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, Check, FileText, FolderOpen, Pin, Save, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText, FolderOpen, Pin, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthProvider";
@@ -284,49 +285,10 @@ export function NoteEditorScreen({
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-background">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-outline-variant bg-surface-bright/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6 lg:px-10">
-        <div className="mx-auto flex max-w-[1440px] items-center gap-3">
-          <button
-            aria-label="Volver"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-            onClick={goBack}
-            type="button"
-          >
-            <ArrowLeft size={19} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="font-label-caps text-label-caps uppercase text-on-surface-variant">EDITOR DE NOTAS</p>
-            <p className="truncate font-body-sm text-body-sm font-semibold text-on-surface">{note ? "Editar nota" : "Nueva nota"}</p>
-          </div>
-          <div className="hidden items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant sm:flex">
-            {isNew && draft.state === "saving" && <span>Guardando borrador...</span>}
-            {isNew && draft.state === "saved" && <><Check size={15} className="text-primary" /> Borrador guardado</>}
-            {!isNew && hasChanges && <span>Cambios sin guardar</span>}
-            {!hasChanges && !isNew && <><Check size={15} className="text-primary" /> No hay cambios pendientes</>}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              className="min-h-11 rounded-xl border border-outline-variant px-3 font-label-md text-label-md font-semibold text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-              onClick={goBack}
-              type="button"
-            >
-              Cancelar
-            </button>
-            <button
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 font-label-md text-label-md font-semibold text-on-primary hover:bg-primary-container hover:text-on-primary-container disabled:cursor-wait disabled:opacity-60"
-              disabled={saving}
-              onClick={() => void submit()}
-              type="button"
-            >
-              <Save size={16} /> <span className="hidden sm:inline">{note ? "Guardar cambios" : "Crear nota"}</span><span className="sm:hidden">Guardar</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto grid w-full max-w-[1440px] flex-1 gap-6 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:p-10">
-        <main className="min-w-0">
+    <OfficialPage className="official-note-editor">
+      <OfficialHeader eyebrow="MIS NOTAS" title={note ? form.title || "Editar nota" : "Nueva nota"} description={<span>Mis notas / {isNew ? "Borrador" : "Editar"}{isNew && draft.state === "saved" ? " · Borrador guardado" : hasChanges ? " · Cambios sin guardar" : ""}</span>} actions={<><button className="official-button" onClick={goBack}>Cancelar</button><button className="official-button" data-primary disabled={saving} onClick={() => void submit()}><Save size={16}/>{saving ? "Guardando…" : note ? "Guardar cambios" : "Guardar nota"}</button></>}/>
+      <div className="official-split">
+        <main className="official-panel min-h-[732px]">
           {draftRestored && restoredAt && (
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary-fixed px-4 py-3 font-body-sm text-body-sm text-on-primary-fixed">
               <span>Se restauró tu borrador de {formatDraftTime(restoredAt.toISOString())}.</span>
@@ -386,7 +348,7 @@ export function NoteEditorScreen({
           <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center gap-2">
               <FolderOpen className="text-primary" size={17} />
-              <h2 className="font-headline-xs text-headline-xs font-semibold text-on-surface">Organización</h2>
+              <h2 className="font-headline-xs text-headline-xs font-semibold text-on-surface">Organizar nota</h2>
             </div>
             <label className="block">
               <span className="font-label-caps text-label-caps text-on-surface-variant">PROYECTO</span>
@@ -543,6 +505,6 @@ export function NoteEditorScreen({
           title="¿Salir del editor?"
         />
       )}
-    </section>
+    </OfficialPage>
   );
 }

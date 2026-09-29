@@ -1,7 +1,9 @@
 "use client";
 
+import { OfficialPage, OfficialHeader } from "@/components/ui/OfficialPage";
+import "@/features/pomodoro/components/focus.css";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Settings, Timer } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type {
@@ -395,24 +397,37 @@ function FocusPageContent() {
   };
 
   return (
-    <main className="relative flex min-h-screen w-full flex-col items-center overflow-y-auto bg-surface px-4 py-6 sm:px-8 sm:py-10">
-      <button
-        className="absolute left-4 top-4 flex items-center gap-2 rounded-md border border-outline-variant bg-surface-container-lowest px-3 py-2 font-body-sm text-body-sm text-on-surface-variant hover:border-outline hover:text-primary sm:left-6 sm:top-6"
-        onClick={() => router.push("/")}
-        type="button"
-      >
-        <ArrowLeft size={16} /> Salir del modo
-      </button>
-      <button
-        aria-label="Configuración Pomodoro"
-        className="absolute right-4 top-4 rounded-md border border-outline-variant bg-surface-container-lowest p-2 text-on-surface-variant hover:border-outline hover:text-primary sm:right-6 sm:top-6"
-        onClick={() => setSettingsOpen(true)}
-        type="button"
-      >
-        <Settings size={17} />
-      </button>
-      <div className="flex w-full max-w-2xl flex-col items-center gap-8 pt-16 sm:gap-12 sm:pt-10">
-        <div className="flex w-full flex-col gap-3 rounded-lg border border-outline-variant bg-surface-container-lowest p-4 sm:p-5">
+    <OfficialPage className="official-focus">
+      <OfficialHeader eyebrow="MODO ENFOQUE" title="Un momento para concentrarte" description="Elige una tarea y encuentra tu ritmo." actions={<button className="official-button" data-primary aria-label="Configuración Pomodoro" onClick={() => setSettingsOpen(true)}><Settings size={17}/>Configuración</button>}/>
+      <div className="official-tabs" role="tablist" aria-label="Fase de enfoque">
+        {([["WORK", "Enfoque"], ["SHORT_BREAK", "Descanso corto"], ["LONG_BREAK", "Descanso largo"]] as const).map(([value, label]) => <button role="tab" aria-selected={displayPhase === value} key={value} disabled={Boolean(running)} onClick={() => setPhase(value)}>{label}</button>)}
+      </div>
+      <div className="official-focus-grid">
+        <section className="official-panel official-focus-timer">
+          <p className="official-eyebrow">SESIÓN {currentSession?.cycleIndex ?? cycleIndex} DE {settings.cyclesPerLong}</p>
+        <TimerDisplay
+          phase={displayPhase}
+          pomodorosCompleted={selectedTask?.pomodoroCount ?? null}
+          pomodorosEstimated={selectedTask?.pomodoroEstimate ?? null}
+          remainingSec={remainingSec}
+        />
+        <Controls
+          onCompletePomodoro={() => void completeSession()}
+          onPause={() => void pauseResume()}
+          onResume={() => void pauseResume()}
+          onSkipBreak={() => void skipBreak()}
+          onStart={() => void startPhase(phase, cycleIndex)}
+          onStop={() => void stop()}
+          paused={Boolean(paused)}
+          phase={displayPhase}
+          running={running}
+        />
+
+          {!running && <button className="official-button" onClick={() => { setPhase("WORK"); setCycleIndex(1); }}>Reiniciar</button>}
+          <p className="official-description text-center">Un paso pequeño también cuenta.</p>
+        </section>
+        <aside className="official-panel official-focus-context">
+          <h2>Tu siguiente paso</h2>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-label-caps text-label-caps uppercase text-on-surface-variant">
               ENFOQUE
@@ -481,7 +496,8 @@ function FocusPageContent() {
                 onPageChange={setTaskPage}
               />
             )}
-        </div>
+
+          <div className="mt-6 border-t border-outline-variant pt-5"><h3 className="font-semibold">Cuida este espacio</h3><p className="official-description my-4">Cierra lo que no necesitas y dale toda tu atención a una sola cosa.</p><button className="official-button w-full" onClick={() => { if (supportsDocumentPictureInPicture()) void globalPomodoro.openPictureInPicture(); else openPomodoroWindow(); }}>Abrir ventana flotante</button></div>
         {selectedTask && (
           <TaskFocusDetails
             disabled={running}
@@ -490,40 +506,12 @@ function FocusPageContent() {
             task={selectedTask}
           />
         )}
-        <TimerDisplay
-          phase={displayPhase}
-          pomodorosCompleted={selectedTask?.pomodoroCount ?? null}
-          pomodorosEstimated={selectedTask?.pomodoroEstimate ?? null}
-          remainingSec={remainingSec}
-        />
-        <Controls
-          onCompletePomodoro={() => void completeSession()}
-          onPause={() => void pauseResume()}
-          onResume={() => void pauseResume()}
-          onSkipBreak={() => void skipBreak()}
-          onStart={() => void startPhase(phase, cycleIndex)}
-          onStop={() => void stop()}
-          paused={Boolean(paused)}
-          phase={displayPhase}
-          running={running}
-        />
-        <div className="flex w-full max-w-2xl flex-col gap-4">
-          <div className="flex items-center justify-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
-            <Timer size={15} />{" "}
-            {settings.autoCycle
-              ? "Pasar al descanso automáticamente"
-              : "Tú decides cuándo descansar"}
-          </div>
-          <SessionList sessions={sessionsQuery.data?.data ?? []} />
-        </div>
+
+        </aside>
+        <section className="official-panel official-focus-history"><h2>Sesiones recientes</h2><SessionList sessions={sessionsQuery.data?.data ?? []}/></section>
       </div>
-      {settingsOpen && (
-        <SettingsModal
-          onClose={() => setSettingsOpen(false)}
-          settings={settings}
-        />
-      )}
-    </main>
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} settings={settings}/>}
+    </OfficialPage>
   );
 }
 
